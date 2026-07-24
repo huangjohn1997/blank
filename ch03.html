@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3 · From IDs to learned vectors — From Prediction to Agency</title>
+<meta name="description" content="Why token IDs are addresses, what an embedding table is, what it costs, and how one prediction error changes exactly one row of it.">
+<link rel="stylesheet" href="assets/textbook.css">
+<script src="assets/corpus.js" defer></script>
+<script src="assets/textbook.js" defer></script>
+<script src="assets/ch03.js" defer></script>
+</head>
+<body data-ch="ch3">
+<div id="prog"></div>
+
+<header class="spine">
+  <div class="spine-in">
+    <a class="spine-home" href="index.html">Prediction&nbsp;→&nbsp;Agency</a>
+    <nav class="spine-track" aria-label="Course spine">
+      <a href="ch01.html"><span class="sn">1</span>Prediction</a>
+      <a href="ch02.html"><span class="sn">2</span>Tokens</a>
+      <a href="ch03.html" aria-current="page"><span class="sn">3</span>Vectors</a>
+      <a href="ch04.html"><span class="sn">4</span>Geometry</a>
+      <a class="future" href="index.html#roadmap"><span class="sn">5</span>Memory</a>
+      <a class="future" href="index.html#roadmap"><span class="sn">6</span>Attention</a>
+      <a class="future" href="index.html#roadmap"><span class="sn">7</span>Transformer</a>
+      <a class="future" href="index.html#roadmap"><span class="sn">8</span>Pretraining</a>
+      <a class="future" href="index.html#roadmap"><span class="sn">9–12</span>Contracts → Measurement</a>
+    </nav>
+    <div class="spine-tools"><button class="tbtn" id="theme" type="button">Dark</button></div>
+  </div>
+</header>
+
+<div class="wrap"><div class="shell">
+<main>
+
+<div class="chead">
+  <div class="kick">Volume I · Part I · Chapter 3 <b>— Prediction and representation</b></div>
+  <h1>From IDs to learned vectors</h1>
+  <p class="dek">The tokenizer hands the model integers. Integers cannot express similarity. This chapter installs the one piece of machinery that can — and it turns out to be a table you look things up in.</p>
+</div>
+
+<nav class="contract" aria-label="How this chapter reasons">
+  <div class="contract-t">How this chapter reasons</div>
+  <ol>
+    <li data-target="#address"><span class="mv mv-need">Need</span><a class="txt" data-target="#address" href="#address">A token ID is an address; arithmetic on addresses is nonsense</a></li>
+    <li data-target="#lookup"><span class="mv mv-mech">Mechanism</span><a class="txt" data-target="#lookup" href="#lookup">Give every token its own row of numbers and fetch it</a></li>
+    <li data-target="#cost"><span class="mv mv-cons">Consequence</span><a class="txt" data-target="#cost" href="#cost">The table has a size, a price, and an unevenly trained tail</a></li>
+    <li data-target="#learn"><span class="mv mv-mech">Mechanism</span><a class="txt" data-target="#learn" href="#learn">The rows are parameters: one prediction error edits one row</a></li>
+    <li data-target="#drift"><span class="mv mv-cons">Consequence</span><a class="txt" data-target="#drift" href="#drift">Rows with similar predictive jobs start to move together</a></li>
+    <li data-target="#history"><span class="mv mv-evid">Evidence</span><a class="txt" data-target="#history" href="#history">Where this idea came from, and what changed on the way to now</a></li>
+    <li data-target="#limits"><span class="mv mv-limit">Limit</span><a class="txt" data-target="#limits" href="#limits">One row per token, regardless of what the token is doing</a></li>
+  </ol>
+</nav>
+
+<details class="aside-box" style="border-left-color:var(--navy);background:var(--navy-soft)">
+  <summary style="font-family:var(--sans);font-size:.8rem;font-weight:650;cursor:pointer;color:var(--navy)">Optional warm start — two questions from Chapters 1–2</summary>
+  <p style="margin-top:.6rem;font-size:.88rem">Two minutes, from memory. Skip freely.</p>
+  <div class="check" data-check="c3w1" data-answer="1" style="background:var(--paper)">
+    <div class="check-hd">Warm start · 1</div>
+    <p class="check-q">Chapter 1 ended with a requirement. State it in the form the rest of the book needs.</p>
+    <ul class="opts">
+      <li><button class="opt" type="button"><span class="k">A</span><span>Use a longer context window.</span></button></li>
+      <li><button class="opt" type="button"><span class="k">B</span><span>Similar contexts must be able to share evidence, which requires a representation in which similarity exists.</span></button></li>
+      <li><button class="opt" type="button"><span class="k">C</span><span>Collect more data so fewer contexts are unseen.</span></button></li>
+    </ul>
+    <div class="verdict ok" data-for="ok" hidden><span class="vt">Correct</span>That is the requirement this chapter starts paying off, and Chapter 4 finishes.</div>
+    <div class="verdict no" data-for="no" hidden><span class="vt">Not quite</span><b>B</b>. <b>C</b> helps and never suffices — the tail is inexhaustible. The structural fix is a representation that lets one context inform another.</div>
+  </div>
+  <div class="check" data-check="c3w2" data-answer="0" style="background:var(--paper)">
+    <div class="check-hd">Warm start · 2</div>
+    <p class="check-q">In Chapter 2, what determined a token ID’s numeric value?</p>
+    <ul class="opts">
+      <li><button class="opt" type="button"><span class="k">A</span><span>Its position in the vocabulary list — base characters first, then merges in discovery order.</span></button></li>
+      <li><button class="opt" type="button"><span class="k">B</span><span>Its frequency rank in the corpus.</span></button></li>
+      <li><button class="opt" type="button"><span class="k">C</span><span>Alphabetical order of the token text.</span></button></li>
+    </ul>
+    <div class="verdict ok" data-for="ok" hidden><span class="vt">Correct</span>An accident of bookkeeping — which is exactly why §3.1 can prove that the number itself carries no information.</div>
+    <div class="verdict no" data-for="no" hidden><span class="vt">Not quite</span><b>A</b>. Frequency and alphabet both influenced <em>which</em> tokens exist, but the ID is just a position in a list. Nothing downstream may depend on it.</div>
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="address" data-move="need">
+<div class="move need"><span class="n">§3.1</span> The need</div>
+<h2>An ID is an address, not a quantity</h2>
+
+<p class="lede">Our tokenizer assigns <em>▁the</em> some number and <em>▁keeper</em> some other number. Suppose they are 312 and 87. The model receives 312. What can it do with that?</p>
+
+<p>It can compare it to other numbers, but every comparison is meaningless: 312 is not “more” than 87 in any sense the language supports, and the token whose ID is 313 has no relationship to the token whose ID is 312 — they are neighbours by accident of merge order. It can multiply it by a weight, but then the strength of that weight’s effect scales with an arbitrary label, which is worse than meaningless: it is actively misleading.</p>
+
+<p>Before fixing this, commit to a prediction. The question below is the one that separates people who have understood this from people who have memorised the phrase “embeddings are learned”.</p>
+
+<div class="check" data-check="c3q1" data-answer="2">
+  <div class="check-hd">Commit before reading on</div>
+  <p class="check-q">Take a fully trained model. Relabel every token ID — token 312 becomes 5, token 5 becomes 990, and so on — and move each token’s row of the embedding table with it, so each token keeps its own row. What happens to the model’s output?</p>
+  <ul class="opts">
+    <li><button class="opt" type="button"><span class="k">A</span><span>It breaks completely: the weights were learned against the old IDs.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">B</span><span>It degrades a little, because nearby IDs shared information.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">C</span><span>Nothing changes at all — every prediction is bit-for-bit identical.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">D</span><span>It changes unpredictably; you would have to run it to find out.</span></button></li>
+  </ul>
+  <div class="verdict ok" data-for="ok" hidden><span class="vt">Committed · correct</span>Exactly — and the reason is the point of this section. The ID’s only job is to find the right row. Move the label and the row together and the model still receives the same vector, so every downstream computation is unchanged. The exhibit below lets you do it, including the version where you move the label <em>without</em> the row.</div>
+  <div class="verdict no" data-for="no" hidden><span class="vt">Committed · not quite, and this is the productive mistake</span>The answer is <b>C</b>. Here is the test that settles it: what does the model actually consume? Not the integer — the <em>row of numbers the integer points to</em>. If the row travels with the token, the model receives the identical vector and computes the identical output. The integer is a postal address; relabelling every house consistently changes no one’s post. Now try the exhibit, and then try the sabotage switch, which relabels addresses <em>without</em> moving the residents.</div>
+</div>
+
+<div class="fig exp" id="fig-3-1">
+  <div class="fig-hd"><b>Exhibit 3.1</b> · interactive</div>
+  <div class="fig-t">Relabelling the addresses</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Shuffle the IDs, and watch what the model receives. Then switch on <em>sabotage</em> and shuffle again.</p>
+    <div id="lab-3-1"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> a consistent relabelling changes the one-hot position and the table order, and the fetched vector stays identical — because the row moved with its token. Under sabotage the labels move and the rows do not, and now the model reads someone else’s vector. <b>The information was never in the integer; it was in the association between the integer and a row.</b></p>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="lookup" data-move="mech">
+<div class="move mech"><span class="n">§3.2</span> The mechanism</div>
+<h2>One row per token</h2>
+
+<p>The fix is almost embarrassingly plain. Build a table with one row per vocabulary entry and <span class="m">d</span> numbers in each row. To turn a token ID into something computable, fetch its row. That row is the token’s <button class="term" data-t="embedding">embedding</button>, the table is the embedding matrix <span class="m">E</span>, and its shape is <span class="m">V × d</span> — vocabulary size by <em>model dimension</em>.</p>
+
+<p>Two vocabulary items now occupy <span class="m">d</span>-dimensional space, so questions that were unaskable become askable: how far apart are they, do they point the same way, what lies between them. We have not yet said anything about <em>what</em> the numbers should be. That comes in §3.4, and it comes from the prediction loss of Chapter 1, not from a dictionary.</p>
+
+<p>Textbooks and papers usually present the lookup as a matrix multiplication, and it is worth seeing why, because the notation appears everywhere. Write the token as a <em>one-hot</em> vector: a row of <span class="m">V</span> numbers, all zero except a single 1 at the token’s position. Multiply that by <span class="m">E</span>.</p>
+
+<div class="eqn">
+  <div class="eqn-t">Equation 3.1 · Selecting a row is a matrix multiplication in disguise</div>
+  <div class="eqn-m">
+    <math display="block">
+      <mrow data-ex="onehot"><msubsup><mi>e</mi><mi>i</mi><mo>⊤</mo></msubsup></mrow>
+      <mo>⁢</mo>
+      <mrow data-ex="Emat"><mi mathvariant="bold">E</mi></mrow>
+      <mo>=</mo>
+      <mrow data-ex="rowi"><msub><mi mathvariant="bold">E</mi><mrow><mi>i</mi><mo>,</mo><mo>:</mo></mrow></msub></mrow>
+      <mspace width="1.2em"/>
+      <mrow data-ex="shapes"><mo>(</mo><mn>1</mn><mo>×</mo><mi>V</mi><mo>)</mo><mo>⁢</mo><mo>(</mo><mi>V</mi><mo>×</mo><mi>d</mi><mo>)</mo><mo>=</mo><mo>(</mo><mn>1</mn><mo>×</mo><mi>d</mi><mo>)</mo></mrow>
+    </math>
+  </div>
+  <div class="eqn-r"><b>Read it as:</b> a vector that is all zeros except a 1 in position <span class="m">i</span>, multiplied by the table, returns exactly row <span class="m">i</span> — every other row is multiplied by zero and vanishes. The shapes on the right confirm it: one token in, <span class="m">d</span> numbers out. <b>No implementation does this multiplication.</b> They index the row directly, because multiplying by all those zeros is pure waste.</div>
+</div>
+
+<div class="fig exp" id="fig-3-2">
+  <div class="fig-hd"><b>Exhibit 3.2</b> · interactive</div>
+  <div class="fig-t">The multiplication nobody performs</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Pick a token, then switch between the two views: <em>as written</em> and <em>as implemented</em>.</p>
+    <div id="lab-3-2"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> the two views produce the same <span class="m">d</span> numbers, and the arithmetic count differs by a factor of the vocabulary size. This is the first of many places in the book where the notation is chosen for provability and the implementation is chosen for cost. Reading a paper well means holding both.</p>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="cost" data-move="cons">
+<div class="move cons"><span class="n">§3.3</span> First consequence</div>
+<h2>What the table costs</h2>
+
+<p>The table is <span class="m">V × d</span> numbers, and every one of them is a <button class="term" data-t="parameter">parameter</button> — a number training is free to change and inference must keep in memory.</p>
+
+<div class="eqn">
+  <div class="eqn-t">Equation 3.2 · The size of the embedding table, and what it occupies</div>
+  <div class="eqn-m">
+    <math display="block">
+      <mrow data-ex="nparam"><msub><mi>N</mi><mtext>emb</mtext></msub></mrow><mo>=</mo>
+      <mrow data-ex="Vd"><mi>V</mi><mo>·</mo><mi>d</mi></mrow>
+      <mspace width="1.4em"/>
+      <mtext>bytes</mtext><mo>=</mo>
+      <mrow data-ex="Vd"><mi>V</mi><mo>·</mo><mi>d</mi></mrow><mo>·</mo>
+      <mrow data-ex="bpp"><mi>b</mi></mrow>
+    </math>
+  </div>
+  <div class="eqn-r"><b>Read it as:</b> vocabulary size times model dimension gives the parameter count; multiply by the bytes per number to get memory. <span class="m">b</span> is 4 for 32-bit floats, 2 for the 16-bit formats used in most training, and 1 when a model is quantised to 8-bit for serving.</div>
+</div>
+
+<div class="fig exp" id="fig-3-3">
+  <div class="fig-hd"><b>Exhibit 3.3</b> · interactive calculator</div>
+  <div class="fig-t">Choosing V and d is choosing a bill</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Set a vocabulary and dimension, then push the vocabulary from 32k to 256k — the multilingual move of §2.5 — and watch what it costs.</p>
+    <div id="lab-3-3"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> the embedding table is a rounding error in a very large model and a substantial fraction of a small one, which is why small multilingual models feel the vocabulary decision most acutely. And the last panel shows the part people forget: with realistic word frequencies, most of the rows are trained on almost nothing.</p>
+</div>
+
+<p>That last point is worth stating plainly, because it connects two chapters. Chapter 1 showed that word frequencies follow a heavy tail: a few tokens appear constantly, most appear rarely. Every row of <span class="m">E</span> is updated only when its token appears. So the table’s rows are not equally trained — the frequent rows are shaped by millions of examples and the tail rows by a handful. When a model behaves strangely on a rare name, a technical term, or a low-resource language, one honest hypothesis is that the relevant rows are simply undertrained. <span class="chip inf">Inferred</span> — the mechanism is certain, the attribution in any particular case needs evidence.</p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="learn" data-move="mech">
+<div class="move mech"><span class="n">§3.4</span> The second mechanism</div>
+<h2>Where the numbers come from</h2>
+
+<p>The rows start as small random numbers. They are then changed by exactly the process Chapter 1 defined: make a prediction, measure the surprise, and adjust every parameter a little in the direction that would have reduced it. That is <button class="term" data-t="gradient-descent">gradient descent</button>, and Chapter 8 builds it properly. What matters here is a structural detail with large consequences.</p>
+
+<p>When the model reads token <span class="m">i</span>, the only row of <span class="m">E</span> that touched the computation is row <span class="m">i</span>. A parameter that did not affect the prediction cannot have affected the loss, so its gradient is zero. The embedding update is therefore <em>sparse</em>: one token read, one row changed.</p>
+
+<div class="eqn">
+  <div class="eqn-t">Equation 3.3 · One prediction error edits one row</div>
+  <div class="eqn-m">
+    <math display="block">
+      <mrow data-ex="rowi"><msub><mi mathvariant="bold">E</mi><mrow><mi>i</mi><mo>,</mo><mo>:</mo></mrow></msub></mrow>
+      <mo>←</mo>
+      <mrow data-ex="rowi"><msub><mi mathvariant="bold">E</mi><mrow><mi>i</mi><mo>,</mo><mo>:</mo></mrow></msub></mrow>
+      <mo>−</mo>
+      <mrow data-ex="lr"><mi>η</mi></mrow>
+      <mrow data-ex="grad"><mfrac><mrow><mo>∂</mo><mi>L</mi></mrow><mrow><mo>∂</mo><msub><mi mathvariant="bold">E</mi><mrow><mi>i</mi><mo>,</mo><mo>:</mo></mrow></msub></mrow></mfrac></mrow>
+      <mspace width="1.2em"/>
+      <mrow data-ex="zero"><mfrac><mrow><mo>∂</mo><mi>L</mi></mrow><mrow><mo>∂</mo><msub><mi mathvariant="bold">E</mi><mrow><mi>j</mi><mo>,</mo><mo>:</mo></mrow></msub></mrow></mfrac><mo>=</mo><mn>0</mn><mspace width=".4em"/><mtext>for&#8202;all</mtext><mspace width=".3em"/><mi>j</mi><mo>≠</mo><mi>i</mi></mrow>
+    </math>
+  </div>
+  <div class="eqn-r"><b>Read it as:</b> move row <span class="m">i</span> a small step (<span class="m">η</span>, the learning rate) against the direction in which the loss increases — and leave every other row untouched, because they contributed nothing to this prediction. Over a corpus, each row accumulates only the lessons of its own occurrences.</div>
+</div>
+
+<div class="fig exp" id="fig-3-4">
+  <div class="fig-hd"><b>Exhibit 3.4</b> · interactive · a real model, trained here</div>
+  <div class="fig-t">One step, one row</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Choose a training pair and take one step. Read the gradient column first — then look at which row changed.</p>
+    <div id="lab-3-4"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> the gradient is non-zero for exactly one row of the table, and after the step the probability of the correct next token has risen. Nothing about “meaning” was supplied; the only instruction the model received was <em>you should have predicted this token here</em>. Everything the table ever knows is accumulated from that instruction, repeated.</p>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="drift" data-move="cons">
+<div class="move cons"><span class="n">§3.5</span> Second consequence</div>
+<h2>Why the rows do not stay unrelated</h2>
+
+<p>Here is the consequence that makes the next chapter necessary. Two tokens that need to <em>predict the same things</em> receive similar instructions, over and over. If <em>dog</em> and <em>cat</em> are both followed by eating and running and sleeping, then whatever adjustment helps the model predict those continuations after <em>dog</em> also helps after <em>cat</em>. The rows are updated separately, and they are pushed in the same direction.</p>
+
+<p>Nobody encoded that relationship. It is a side effect of sharing a prediction task.</p>
+
+<div class="fig exp" id="fig-3-5">
+  <div class="fig-hd"><b>Exhibit 3.5</b> · interactive · same model, trained further</div>
+  <div class="fig-t">Watching two rows converge</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Train in bursts and watch the three tracked pairs. Predict which will rise before you press.</p>
+    <div id="lab-3-5"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> pairs of tokens with the same predictive role climb toward each other; a pair drawn from different roles does not. The geometry is a residue of the training task — which is exactly why Chapter 4 can read structure out of it, and exactly why that structure means only what the task and the corpus put there.</p>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="history" data-move="evid">
+<div class="move evid"><span class="n">§3.6</span> Evidence</div>
+<h2>Three eras of the same table</h2>
+
+<p><span class="chip est">Established</span> The idea of learning a vector per word inside a neural language model is due to Bengio and colleagues in 2003, who trained a network to predict the next word and let the word vectors be parameters of that network. Everything in this chapter is that architecture, with the vocabulary of Chapter 2 in front of it.</p>
+
+<p><span class="chip est">Established</span> In the following decade the vectors themselves became the product: methods like word2vec and GloVe were trained specifically to produce reusable word vectors, which were then loaded into other systems as features. That is Chapter 4’s subject, and it is where the geometry was first studied carefully.</p>
+
+<p><span class="chip est">Established</span> In current systems the table is back to being an internal layer. The Transformer paper trains input and output embeddings as part of one end-to-end model, and large autoregressive models followed. Nobody ships “the embeddings” of a modern language model as the deliverable; the deliverable is the model, and the table is its first layer.</p>
+<p class="src">Bengio et al., “A Neural Probabilistic Language Model” (2003) · Vaswani et al., <a href="https://arxiv.org/abs/1706.03762">“Attention Is All You Need”</a> (2017) · Brown et al., <a href="https://arxiv.org/abs/2005.14165">“Language Models are Few-Shot Learners”</a> (2020).</p>
+
+<div class="aside-box">
+  <div class="ab-t">Optional · weight tying</div>
+  <p>A model needs a table to turn tokens <em>into</em> vectors at the input, and a matrix to turn vectors <em>back into</em> scores over the vocabulary at the output. Both are <span class="m">V × d</span>. Some systems use the same matrix for both, which saves <span class="m">V · d</span> parameters and couples the two roles: every input update also changes the output layer. Press and Wolf analysed this in 2017 and found it can improve quality as well as size.</p>
+  <p>Worth knowing because it is a recurring “is this one thing or two?” question in model cards — and because the answer changes the parameter count you are being quoted.</p>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="limits" data-move="limit">
+<div class="move limit"><span class="n">§3.7</span> The limit</div>
+<h2>One row per token, forever</h2>
+
+<p>What we have built is real progress: similarity is now expressible, related tokens can share the benefit of training, and nothing in the model depends on the arbitrary integers. But look hard at the shape of the table and two hard limits are visible in it.</p>
+
+<p><strong>The row does not depend on the sentence.</strong> <em>Bank</em> gets one row whether the text is about rivers or money. Whatever the table learns about a token with several uses must be a single compromise between them. No amount of training changes this; it is a property of a table with one row per token.</p>
+
+<p><strong>The row does not know where it is.</strong> Fetching rows for a sequence gives you a bag of vectors with no order and no interaction. <em>The dog bit the man</em> and <em>the man bit the dog</em> produce the same set of rows.</p>
+
+<p>Those two sentences are the agenda for the rest of Part I. Chapter 5 gives the model a state that carries information along the sequence; Chapter 6 lets positions interact selectively; Chapter 7 assembles the result. But before that machinery, there is a question we can answer right now with the table alone, and it is one of the most consequential in the field: <em>what structure do these rows actually acquire, and what may we conclude from it?</em></p>
+
+<div class="recon" data-recon="c3r1">
+  <div class="r-k">Reconstruct — write it before you read it</div>
+  <p class="r-q">Trace the causal chain from “the model mispredicted a token” to “two unrelated words ended up with similar rows”. Four or five sentences, no equations.</p>
+  <textarea rows="5" placeholder="Your explanation…" aria-label="Your reconstruction"></textarea>
+  <button class="btn ghost" type="button">I’ve written mine — show a model answer</button>
+  <div class="r-model" hidden>
+    <p><strong>A model answer.</strong> The model reads a token by fetching that token’s row from the table, and uses those numbers to score every possible next token. If the token that actually followed got too little probability, training adjusts the numbers that contributed to the mistake — including that row — a small step in the direction that would have scored the truth higher. Only that row changes, because no other row took part in the computation. Now consider two different tokens that tend to be followed by the same kinds of continuations: each time either one appears, its row is nudged toward representing “the things that follow me”, and since those things overlap, the two rows are repeatedly nudged in similar directions. After enough occurrences they end up close together, without anyone ever having stated that the two words are related.</p>
+    <p><strong>Check yourself:</strong> does your chain include the reason <em>only one row</em> changes? That sparsity is what makes “each row accumulates the lessons of its own occurrences” true — and therefore what makes the frequency tail of Chapter 1 a training-quality problem.</p>
+  </div>
+</div>
+
+<div class="check" data-check="c3q2" data-answer="1">
+  <div class="check-hd">Transfer</div>
+  <p class="check-q">Your team wants to serve a 1.5-billion-parameter model in eight languages, and proposes growing the vocabulary from 32,000 to 256,000 tokens to cut fertility on non-English traffic. Model dimension is 2,048. What do you say?</p>
+  <ul class="opts">
+    <li><button class="opt" type="button"><span class="k">A</span><span>Go ahead — vocabulary size does not affect model size, only the tokenizer.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">B</span><span>It adds roughly 460 million parameters to the embedding table alone — around a third again on top of a 1.5-billion model — so the fertility saving has to be weighed against memory, and against the tail rows being trained on very little data.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">C</span><span>It will slow down inference proportionally, because each token now requires 8× more lookups.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">D</span><span>Nothing changes materially; embeddings are a small part of any model.</span></button></li>
+  </ul>
+  <div class="verdict ok" data-for="ok" hidden><span class="vt">Committed · correct</span>224,000 new rows × 2,048 = about 459 million parameters, and the output layer doubles that unless weights are tied. This is precisely the tension small multilingual models live inside: the tokenizer fix that lowers your bill per document raises your memory footprint and spreads training thinner across rows. There is no free version, only a measured tradeoff — which is the answer a technical decision-maker is expected to produce.</div>
+  <div class="verdict no" data-for="no" hidden><span class="vt">Committed · not quite</span>The answer is <b>B</b>. Run Equation 3.2: 224,000 extra rows × 2,048 numbers ≈ 459 million parameters — enormous relative to a 1.5-billion-parameter model, and doubled again if the output layer is untied. <b>C</b> is wrong about the mechanism: a lookup is a lookup regardless of table size (though the output layer’s softmax over V does get more expensive). <b>D</b> is true for very large models and false here, which is exactly why the question specified the size.</div>
+</div>
+</section>
+
+<div class="carry">
+  <div class="c-k">Carry forward</div>
+  <ul>
+    <li><b>Settled:</b> token IDs are addresses; the embedding table gives each token a row of <span class="m">d</span> learned numbers; the one-hot multiplication is notation for a lookup; the table is <span class="m">V · d</span> parameters and one prediction error edits exactly one row.</li>
+    <li><b>Consequences to keep:</b> vocabulary size buys fertility with memory; rows are trained as unevenly as language is frequent; shared predictive jobs drag rows together.</li>
+    <li><b>Unresolved, and load-bearing:</b> we have seen <em>that</em> the rows acquire structure. We have not established what that structure is, how to measure it, or what it entitles anyone to claim.</li>
+  </ul>
+  <div class="c-next">→ Chapter 4 trains that geometry in front of you, and then tests what it does and does not mean.</div>
+</div>
+
+<nav class="pager">
+  <a class="prev" href="ch02.html"><span class="pk">Chapter 2</span><span class="pt">The representation bargain</span></a>
+  <a class="next" href="ch04.html"><span class="pk">Chapter 4</span><span class="pt">From predictive work to geometry</span></a>
+</nav>
+
+</main>
+
+<nav class="aside-nav" aria-label="In this chapter">
+  <div class="an-t">In this chapter</div>
+  <a data-target="#address" href="#address"><span class="an-mv">Need</span>An ID is an address</a>
+  <a data-target="#lookup" href="#lookup"><span class="an-mv">Mechanism</span>One row per token</a>
+  <a data-target="#cost" href="#cost"><span class="an-mv">Consequence</span>What the table costs</a>
+  <a data-target="#learn" href="#learn"><span class="an-mv">Mechanism</span>Where the numbers come from</a>
+  <a data-target="#drift" href="#drift"><span class="an-mv">Consequence</span>Why rows converge</a>
+  <a data-target="#history" href="#history"><span class="an-mv">Evidence</span>Three eras of one table</a>
+  <a data-target="#limits" href="#limits"><span class="an-mv">Limit</span>One row per token</a>
+</nav>
+</div></div>
+</body>
+</html>

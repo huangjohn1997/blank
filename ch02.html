@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2 · The representation bargain — From Prediction to Agency</title>
+<meta name="description" content="What a token is, how a tokenizer is learned, and why that decision reaches the price of a document and the fairness of a product.">
+<link rel="stylesheet" href="assets/textbook.css">
+<script src="assets/corpus.js" defer></script>
+<script src="assets/textbook.js" defer></script>
+<script src="assets/ch02.js" defer></script>
+</head>
+<body data-ch="ch2">
+<div id="prog"></div>
+
+<header class="spine">
+  <div class="spine-in">
+    <a class="spine-home" href="index.html">Prediction&nbsp;→&nbsp;Agency</a>
+    <nav class="spine-track" aria-label="Course spine">
+      <a href="ch01.html"><span class="sn">1</span>Prediction</a>
+      <a href="ch02.html" aria-current="page"><span class="sn">2</span>Tokens</a>
+      <a href="ch03.html"><span class="sn">3</span>Vectors</a>
+      <a href="ch04.html"><span class="sn">4</span>Geometry</a>
+      <a class="future" href="index.html#roadmap"><span class="sn">5</span>Memory</a>
+      <a class="future" href="index.html#roadmap"><span class="sn">6</span>Attention</a>
+      <a class="future" href="index.html#roadmap"><span class="sn">7</span>Transformer</a>
+      <a class="future" href="index.html#roadmap"><span class="sn">8</span>Pretraining</a>
+      <a class="future" href="index.html#roadmap"><span class="sn">9–12</span>Contracts → Measurement</a>
+    </nav>
+    <div class="spine-tools"><button class="tbtn" id="theme" type="button">Dark</button></div>
+  </div>
+</header>
+
+<div class="wrap"><div class="shell">
+<main>
+
+<div class="chead">
+  <div class="kick">Volume I · Part I · Chapter 2 <b>— Prediction and representation</b></div>
+  <h1>The representation bargain</h1>
+  <p class="dek">Chapter 1 said “token” fourteen times without defining it. The definition turns out to be a negotiation, and everyone who uses the model pays for its terms.</p>
+</div>
+
+<nav class="contract" aria-label="How this chapter reasons">
+  <div class="contract-t">How this chapter reasons</div>
+  <ol>
+    <li data-target="#units"><span class="mv mv-need">Need</span><a class="txt" data-target="#units" href="#units">Text arrives as bytes; a model needs a finite list of discrete units</a></li>
+    <li data-target="#bargain"><span class="mv mv-need">Need</span><a class="txt" data-target="#bargain" href="#bargain">Characters and words each fail, in opposite directions</a></li>
+    <li data-target="#bpe"><span class="mv mv-mech">Mechanism</span><a class="txt" data-target="#bpe" href="#bpe">Learn the units from the corpus: merge the most frequent pair, repeatedly</a></li>
+    <li data-target="#apply"><span class="mv mv-cons">Consequence</span><a class="txt" data-target="#apply" href="#apply">Segmentation is deterministic and reversible — and frozen before training</a></li>
+    <li data-target="#fertility"><span class="mv mv-cons">Consequence</span><a class="txt" data-target="#fertility" href="#fertility">The same meaning costs different amounts in different languages</a></li>
+    <li data-target="#limits"><span class="mv mv-limit">Limit</span><a class="txt" data-target="#limits" href="#limits">A token is still just an integer, and the model cannot see inside it</a></li>
+  </ol>
+</nav>
+
+<details class="aside-box" style="border-left-color:var(--navy);background:var(--navy-soft)">
+  <summary style="font-family:var(--sans);font-size:.8rem;font-weight:650;cursor:pointer;color:var(--navy)">Optional warm start — two questions from Chapter 1</summary>
+  <p style="margin-top:.6rem;font-size:.88rem">Answering from memory before new material is more useful than rereading. Skip it freely; nothing here gates the chapter.</p>
+  <div class="check" data-check="c2w1" data-answer="1" style="background:var(--paper)">
+    <div class="check-hd">Warm start · 1</div>
+    <p class="check-q">Why did the counting model of Chapter 1 become a plagiarist as its context grew?</p>
+    <ul class="opts">
+      <li><button class="opt" type="button"><span class="k">A</span><span>Longer contexts made it prefer common phrases.</span></button></li>
+      <li><button class="opt" type="button"><span class="k">B</span><span>Long contexts mostly occurred once, so the single observed continuation had probability 1.</span></button></li>
+      <li><button class="opt" type="button"><span class="k">C</span><span>Smoothing pushed probability onto memorised text.</span></button></li>
+    </ul>
+    <div class="verdict ok" data-for="ok" hidden><span class="vt">Correct</span>Sharpness from a single example, not from evidence. Keep that distinction — it reappears in Chapter 12 as a measurement problem.</div>
+    <div class="verdict no" data-for="no" hidden><span class="vt">Not quite</span><b>B</b>. A context seen once has exactly one recorded continuation, so counting-and-dividing gives it probability 1 — perfect confidence built on a single observation.</div>
+  </div>
+  <div class="check" data-check="c2w2" data-answer="2" style="background:var(--paper)">
+    <div class="check-hd">Warm start · 2</div>
+    <p class="check-q">Perplexity is a per-token average. Why does that make it fragile as a comparison between two products?</p>
+    <ul class="opts">
+      <li><button class="opt" type="button"><span class="k">A</span><span>Because averages hide outliers.</span></button></li>
+      <li><button class="opt" type="button"><span class="k">B</span><span>Because longer texts always have higher perplexity.</span></button></li>
+      <li><button class="opt" type="button"><span class="k">C</span><span>Because two systems can cut the same text into different numbers of tokens, so the averages have different denominators.</span></button></li>
+    </ul>
+    <div class="verdict ok" data-for="ok" hidden><span class="vt">Correct</span>This chapter is where that denominator comes from — and where you learn to convert to a shared one.</div>
+    <div class="verdict no" data-for="no" hidden><span class="vt">Not quite</span><b>C</b>. Per-token means “divided by the number of tokens”, and the number of tokens is a property of the tokenizer, not of the text. §2.5 makes this concrete and gives you the conversion.</div>
+  </div>
+</details>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="units" data-move="need">
+<div class="move need"><span class="n">§2.1</span> The need</div>
+<h2>Before the units, there are bytes</h2>
+
+<p class="lede">A model’s input is not text. It is a sequence of integers, each one an index into a fixed list. Chapter 1 assumed that list existed and moved on. Now we have to make it, and the first thing to establish is what raw material we are making it out of.</p>
+
+<p>Text on a computer is a sequence of <em>bytes</em>. To interpret those bytes as characters you need an encoding, and in practice that encoding is UTF-8: every Unicode character is stored as one to four bytes, with the common ASCII characters taking one and everything else taking more. This is not trivia. It means that before any modelling decision is made, the world’s writing systems already have unequal costs — an English letter is one byte, a Chinese character is usually three, and an emoji is four.</p>
+
+<div class="fig exp" id="fig-2-1">
+  <div class="fig-hd"><b>Exhibit 2.1</b> · interactive</div>
+  <div class="fig-t">What a string actually is</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Try each preset. Then press <em>compare normalisation</em> and look at the two strings that appear identical.</p>
+    <div id="lab-2-1"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> one visible character can be several codepoints and several bytes; two strings that render identically can differ in memory. If the tokenizer treats those two as different, then a model trained on one spelling of <em>café</em> has learned nothing about the other. This is why real pipelines <em>normalise</em> text before doing anything else — and why normalisation is a modelling decision, not a cleanup step.</p>
+</div>
+
+<p>So the honest starting point is: we have bytes, and we need a finite vocabulary of units to predict over. Everything else in this chapter follows from choosing those units badly and then well.</p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="bargain" data-move="need">
+<div class="move need"><span class="n">§2.2</span> Two obvious answers, both wrong</div>
+<h2>The bargain</h2>
+
+<p>The first obvious choice is <strong>characters</strong>. The vocabulary is tiny — a few hundred symbols covers most of what you will ever see, and nothing is ever unrepresentable. The cost is length: every sentence becomes five times as many prediction steps, and each step carries almost no information. The model must spend its capacity learning to spell before it can learn anything about meaning, and — a point that will matter enormously from Chapter 7 onward — the compute needed to relate every position to every other position grows with the <em>square</em> of the sequence length.</p>
+
+<p>The second obvious choice is <strong>words</strong>. Now sequences are short and each unit is meaningful. But the vocabulary is unbounded: new words arrive constantly, and any fixed word list will meet text it cannot represent, which it must map to a single “unknown” token — an information hole in the input. Worse, the word list wastes itself on morphology, storing <em>run</em>, <em>runs</em>, <em>running</em>, and <em>runner</em> as four unrelated entries that share nothing.</p>
+
+<div class="fig exp" id="fig-2-2">
+  <div class="fig-hd"><b>Exhibit 2.2</b> · interactive · measured on the Chapter 1 corpus</div>
+  <div class="fig-t">The tradeoff you are actually choosing between</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Sweep the vocabulary dial from the character end to the word end and watch the four numbers move together.</p>
+    <div id="lab-2-2"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> vocabulary size and sequence length trade against each other, and neither extreme is free. The character end has no unknown tokens and enormous sequences; the word end has short sequences and an unknown-token rate that no amount of vocabulary quite eliminates. The interesting region is in between — which is not a compromise so much as a different idea.</p>
+</div>
+
+<div class="check" data-check="c2q1" data-answer="2">
+  <div class="check-hd">Commit before reading on</div>
+  <p class="check-q">You want units that are meaningful where the language is predictable and fine-grained where it is not. What should decide the boundaries?</p>
+  <ul class="opts">
+    <li><button class="opt" type="button"><span class="k">A</span><span>A linguist’s morphology rules — split at real prefixes, stems, and suffixes.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">B</span><span>A fixed dictionary of the most common words, with characters for the rest.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">C</span><span>The statistics of the corpus itself — let frequent sequences become units and leave rare ones split.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">D</span><span>Byte boundaries, since bytes are what the computer has.</span></button></li>
+  </ul>
+  <div class="verdict ok" data-for="ok" hidden><span class="vt">Committed · correct</span>And notice what you have just accepted: the units are <em>learned from data</em>, which makes them a modelling choice with a training corpus behind them — inheriting that corpus’s language mix, its domain, and its accidents. <b>B</b> is close, and was a real design (a fixed dictionary plus a fallback); the reason it lost is that the fallback carries no shared structure between related words.</div>
+  <div class="verdict no" data-for="no" hidden><span class="vt">Committed · think again</span>The answer is <b>C</b>. <b>A</b> is appealing and was tried; it requires expert rules per language and still breaks on names, code, and typos. The winning idea is cruder and more general: let frequency decide, so the units are learned from the corpus — with all the inheritance that implies.</div>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="bpe" data-move="mech">
+<div class="move mech"><span class="n">§2.3</span> The mechanism</div>
+<h2>Learning the units by merging</h2>
+
+<p>Here is the whole algorithm. Start with every word split into individual characters — so the vocabulary begins as the character set, and nothing is unrepresentable. Then count every adjacent pair of symbols across the corpus, find the most frequent pair, and glue it together permanently: that pair becomes a new single symbol, added to the vocabulary. Repeat until the vocabulary reaches the size you want.</p>
+
+<div class="eqn">
+  <div class="eqn-t">Equation 2.1 · The one decision a tokenizer trainer makes, repeated</div>
+  <div class="eqn-m">
+    <math display="block">
+      <mrow data-ex="merge"><mo>(</mo><mi>a</mi><mo>,</mo><mi>b</mi><mo>)</mo></mrow>
+      <mo>=</mo>
+      <mrow data-ex="argmax"><munder><mi>arg&#8202;max</mi><mrow><mo>(</mo><mi>x</mi><mo>,</mo><mi>y</mi><mo>)</mo><mo>∈</mo><mi>pairs</mi></mrow></munder></mrow>
+      <mrow data-ex="cnt"><mi>count</mi><mo>(</mo><mi>x</mi><mi>y</mi><mo>)</mo></mrow>
+    </math>
+  </div>
+  <div class="eqn-r"><b>Read it as:</b> among all adjacent symbol pairs currently in the corpus, take the one that occurs most often, and record it as the next merge. Applying that merge changes which pairs are adjacent, so the next round’s counts differ — the rule is simple, its consequences are not.</div>
+</div>
+
+<p>The method is called <em>byte-pair encoding</em>, borrowed from data compression and brought to machine translation by Sennrich, Haddow and Birch in 2016 to solve exactly the rare-word problem of §2.2. <span class="chip est">Established</span> Its close relatives — WordPiece, which chooses merges by likelihood gain rather than raw frequency, and unigram language-model segmentation — differ in the objective, not in the shape of the idea.</p>
+<p class="src">Sennrich, Haddow &amp; Birch, <a href="https://arxiv.org/abs/1508.07909">“Neural Machine Translation of Rare Words with Subword Units”</a> (2016). Kudo &amp; Richardson, <a href="https://arxiv.org/abs/1808.06226">SentencePiece</a> (2018), for the whitespace-marker convention used in the exhibit below.</p>
+
+<div class="fig exp" id="fig-2-3">
+  <div class="fig-hd"><b>Exhibit 2.3</b> · interactive · the real algorithm, running here</div>
+  <div class="fig-t">Train a tokenizer, one merge at a time</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Before pressing <em>merge</em>, look at the candidate list and note which pair is about to win. Merge ten times slowly, then jump to 400 and read the probe sentence.</p>
+    <div id="lab-2-3"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> the earliest merges are structural rather than meaningful — letter pairs English repeats constantly, which is why the first winner is <span class="m">h</span>+<span class="m">e</span> with hundreds of occurrences. Whole common words appear within a few dozen merges. The probe sentence gets shorter in visible steps, and the units that emerge look like morphology without anyone having encoded morphology. <b>Frequency did that.</b></p>
+</div>
+
+<p>Two things are worth extracting from what you just watched.</p>
+
+<p>First, the vocabulary is not a list of words someone chose; it is a <em>trace of the training corpus’s statistics</em>. A tokenizer trained mostly on English news will represent English news in few, large units and everything else in many, small ones. That inheritance is invisible in the model card and permanent in the product.</p>
+
+<p>Second, the merge list is ordered, and applying it in order is what makes segmentation deterministic: the same string always produces the same tokens. That is what makes the next section possible.</p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="apply" data-move="cons">
+<div class="move cons"><span class="n">§2.4</span> First consequence</div>
+<h2>Reversible, deterministic, and frozen</h2>
+
+<p>A trained tokenizer does two jobs. <em>Encode</em>: apply the learned merges to a string and emit token IDs. <em>Decode</em>: concatenate the tokens back into a string. Because the whitespace marker is part of the token text, decoding restores the spaces, and encode-then-decode returns what you started with. Lossless round-tripping matters more than it sounds: it means the model’s output can be turned back into text without a second guessing step.</p>
+
+<div class="fig exp" id="fig-2-4">
+  <div class="fig-hd"><b>Exhibit 2.4</b> · interactive · type your own text</div>
+  <div class="fig-t">Encoding, decoding, and where the seams fall</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Type a rare word, a number, a name, and a typo. Watch where the tokenizer breaks them, and confirm the round-trip stays exact.</p>
+    <div id="lab-2-4"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> common words survive whole; rare words shatter into fragments that carry no relation to their meaning; digits fragment by frequency rather than by place value. The round-trip is exact, but the <em>units</em> are wildly uneven in how much meaning each carries — and the model sees only the units.</p>
+</div>
+
+<p>Now the consequence that experienced practitioners treat as a hard constraint: <strong>the tokenizer is frozen before pretraining begins.</strong> Every weight in the model is learned against these specific units. Changing the vocabulary afterwards invalidates the input and output layers — the model would have to relearn what its integers mean. So the tokenizer is not preprocessing. It is part of the architecture, decided earliest, with the least information, and revisable only at the cost of retraining. <span class="chip inf">Inferred</span> from the mechanism, and consistent with what disclosed technical reports describe when they document tokenizer choices alongside architecture rather than alongside data cleaning.</p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="fertility" data-move="cons">
+<div class="move cons"><span class="n">§2.5</span> Second consequence</div>
+<h2>Who pays for the units</h2>
+
+<p>Because merges are awarded by frequency, whatever was frequent in the tokenizer’s training text gets efficient representation, and whatever was rare gets shredded. Now recall that almost every commercial quantity in this field is measured <em>per token</em>: the price of an API call, the size of the context window, the latency of generation, the throughput of a server. Put those two facts together.</p>
+
+<p>The measure is <em>fertility</em>: how many tokens a tokenizer spends per word (or per character) of a given text. Higher fertility means the same meaning costs more.</p>
+
+<div class="eqn">
+  <div class="eqn-t">Equation 2.2 · Fertility — tokens spent per unit of meaning</div>
+  <div class="eqn-m">
+    <math display="block">
+      <mrow data-ex="fert"><mi>F</mi></mrow><mo>=</mo>
+      <mfrac>
+        <mrow data-ex="ntok"><mo>|</mo><mi>tokens</mi><mo>(</mo><mi>s</mi><mo>)</mo><mo>|</mo></mrow>
+        <mrow data-ex="nword"><mo>|</mo><mi>words</mi><mo>(</mo><mi>s</mi><mo>)</mo><mo>|</mo></mrow>
+      </mfrac>
+    </math>
+  </div>
+  <div class="eqn-r"><b>Read it as:</b> count the tokens a tokenizer produces for a string, divide by the number of words in it. <span class="m">F = 1</span> means one token per word. <span class="m">F = 3</span> means every word costs three prediction steps, three slots of context window, and three units of billing.</div>
+</div>
+
+<div class="fig exp" id="fig-2-5">
+  <div class="fig-hd"><b>Exhibit 2.5</b> · measured with the tokenizer you just trained</div>
+  <div class="fig-t">The same sentence, in several scripts</div>
+  <div class="fig-body">
+    <div id="lab-2-5"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> our tokenizer saw only English, so non-English text falls back to near-character segmentation and its fertility multiplies. This is an exaggerated version of a real and documented effect: production tokenizers are trained on many languages and the gap narrows, but it does not close, because merges remain a finite budget allocated by frequency. <b>The consequence is that identical products cost different amounts to serve in different languages</b> — and the cheaper language is usually the one that dominated the tokenizer’s training data.</p>
+</div>
+
+<div class="fig exp" id="fig-2-6">
+  <div class="fig-hd"><b>Exhibit 2.6</b> · interactive · a decision you will actually face</div>
+  <div class="fig-t">The denominator trap</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Model B is cheaper per token. Set its fertility above A’s and find the point where it becomes more expensive per document.</p>
+    <div id="lab-2-6"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> per-token prices are not comparable across models with different tokenizers, and neither are per-token quality metrics. The fix is mechanical: convert both to a shared denominator — cost per thousand <em>words</em> of your actual traffic — before comparing anything.</p>
+</div>
+
+<div class="eqn">
+  <div class="eqn-t">Equation 2.3 · Converting a per-token price into a comparable one</div>
+  <div class="eqn-m">
+    <math display="block">
+      <mrow data-ex="cost"><msub><mi>C</mi><mrow><mn>1</mn><mi>k</mi><mtext>&#8202;words</mtext></mrow></msub></mrow>
+      <mo>=</mo>
+      <mrow data-ex="price"><mi>p</mi></mrow><mo>·</mo>
+      <mrow data-ex="fert"><mi>F</mi></mrow><mo>·</mo>
+      <mn>1000</mn>
+    </math>
+  </div>
+  <div class="eqn-r"><b>Read it as:</b> price per token, times tokens per word, times a thousand words. Two models with different tokenizers can only be compared after this conversion — and <span class="m">F</span> must be measured on <em>your</em> text, not on English news.</div>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="limits" data-move="limit">
+<div class="move limit"><span class="n">§2.6</span> The limit</div>
+<h2>What the model can and cannot see</h2>
+
+<p>We now have a finite vocabulary, a deterministic encoder, and a reversible decoder. We also have a set of failures that follow directly from the units, and that you will recognise in products.</p>
+
+<p><strong>The model cannot see inside a token.</strong> If <em>strawberry</em> is three tokens, the letter <em>r</em> is not an object the model has access to; counting its occurrences requires reconstructing spelling from statistics about token co-occurrence. Character-level tasks are therefore hard for reasons that have nothing to do with intelligence and everything to do with representation.</p>
+
+<p><strong>Numbers are segmented by frequency, not by magnitude.</strong> Whether <em>1997</em> is one token or three depends on how often that string appeared in the tokenizer’s corpus. Arithmetic over units that do not align with place value is doing work that its representation actively resists.</p>
+
+<p><strong>Per-token metrics are tokenizer-relative.</strong> Perplexity, cost, context length, and tokens-per-second all share this problem. Whenever you compare two systems on a per-token quantity, ask whose denominator you are using. <span class="chip est">Established</span></p>
+
+<p>And now the limit that motivates the next chapter. We have turned text into a sequence of integers — token IDs. Ask what the model can do with the integer 4,412 as such. Is it near 4,411? Is it bigger than 87? The numbers are addresses, assigned in the arbitrary order the merges happened to be discovered, and any arithmetic on them is meaningless. Yet Chapter 1 established what we actually need: a representation in which <em>similar things can share evidence</em>. Token IDs are the opposite of that. They are maximally distinct, equally distant, and mutually uninformative.</p>
+
+<div class="recon" data-recon="c2r1">
+  <div class="r-k">Reconstruct — write it before you read it</div>
+  <p class="r-q">A vendor offers you two models at the same quality. Model A costs $3 per million tokens; model B costs $2. Your traffic is customer support in English, Turkish, and Japanese. In four or five sentences, say what you would measure before choosing, and why the per-token price is not the answer.</p>
+  <textarea rows="5" placeholder="Your answer…" aria-label="Your reconstruction"></textarea>
+  <button class="btn ghost" type="button">I’ve written mine — show a model answer</button>
+  <div class="r-model" hidden>
+    <p><strong>A model answer.</strong> I would take a representative sample of real tickets in all three languages and run each through both tokenizers to measure fertility — tokens per word — per language. Cost per ticket is price per token times tokens per ticket, so a model that is 33% cheaper per token but 60% more fertile on Turkish is more expensive for that traffic. The same measurement decides two other things I care about: how much of each model’s context window a long ticket consumes, and how many generation steps a reply takes, which is latency. I would also refuse to compare any per-token quality number between the two until it was converted to a shared per-word or per-document denominator.</p>
+    <p><strong>Check yourself:</strong> did your answer treat fertility as something to <em>measure on your own traffic</em> rather than to look up? And did you notice that the same measurement governs cost, context, and latency simultaneously — three product properties from one representation choice?</p>
+  </div>
+</div>
+
+<div class="check" data-check="c2q2" data-answer="0">
+  <div class="check-hd">Transfer</div>
+  <p class="check-q">A team wants to improve their model’s arithmetic by retraining the tokenizer so that every digit is its own token, keeping everything else identical. What is the honest summary of this proposal?</p>
+  <ul class="opts">
+    <li><button class="opt" type="button"><span class="k">A</span><span>It is a real fix to a representation problem, and it requires retraining the model from scratch, because the vocabulary the weights were learned against has changed.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">B</span><span>It cannot help, because arithmetic is a reasoning problem, not a representation problem.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">C</span><span>It is a cheap post-hoc improvement, since tokenization is preprocessing.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">D</span><span>It will make sequences shorter and therefore cheaper.</span></button></li>
+  </ul>
+  <div class="verdict ok" data-for="ok" hidden><span class="vt">Committed · correct</span>Both halves matter. Digit-splitting genuinely aligns the units with place value — a representation fix for a representation failure — and it is <em>expensive</em>, because the tokenizer sits at the bottom of the architecture. Note also that <b>D</b> is backwards: per-digit tokens make numeric text longer, which is a real cost accepted in exchange for alignment.</div>
+  <div class="verdict no" data-for="no" hidden><span class="vt">Committed · not quite</span>The answer is <b>A</b>. The idea is sound — it is one of the reasons some model families do exactly this — but the tokenizer is frozen before pretraining, so changing it invalidates every learned weight that touches the vocabulary. And it makes numeric text <em>longer</em>, not shorter.</div>
+</div>
+</section>
+
+<div class="carry">
+  <div class="c-k">Carry forward</div>
+  <ul>
+    <li><b>Settled:</b> units are learned from corpus statistics by repeated merging; segmentation is deterministic and reversible; the tokenizer is frozen before pretraining and therefore architectural.</li>
+    <li><b>Consequences to keep:</b> fertility differs by language and domain, so per-token prices, context windows, latencies, and perplexities are all tokenizer-relative; convert to a shared denominator before comparing.</li>
+    <li><b>Unresolved, and load-bearing:</b> a token ID is an arbitrary address. It supports no notion of similarity, so it cannot let related contexts share evidence — the exact thing Chapter 1 proved we need.</li>
+  </ul>
+  <div class="c-next">→ Chapter 3 replaces the address with something the model can actually compute with.</div>
+</div>
+
+<nav class="pager">
+  <a class="prev" href="ch01.html"><span class="pk">Chapter 1</span><span class="pt">The language-modeling problem</span></a>
+  <a class="next" href="ch03.html"><span class="pk">Chapter 3</span><span class="pt">From IDs to learned vectors</span></a>
+</nav>
+
+</main>
+
+<nav class="aside-nav" aria-label="In this chapter">
+  <div class="an-t">In this chapter</div>
+  <a data-target="#units" href="#units"><span class="an-mv">Need</span>Before the units, bytes</a>
+  <a data-target="#bargain" href="#bargain"><span class="an-mv">Need</span>The bargain</a>
+  <a data-target="#bpe" href="#bpe"><span class="an-mv">Mechanism</span>Learning the units</a>
+  <a data-target="#apply" href="#apply"><span class="an-mv">Consequence</span>Reversible and frozen</a>
+  <a data-target="#fertility" href="#fertility"><span class="an-mv">Consequence</span>Who pays for the units</a>
+  <a data-target="#limits" href="#limits"><span class="an-mv">Limit</span>What the model cannot see</a>
+</nav>
+</div></div>
+</body>
+</html>

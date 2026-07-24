@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1 · The language-modeling problem — From Prediction to Agency</title>
+<meta name="description" content="What a language model actually computes, why counting cannot deliver it, and how we measure the difference.">
+<link rel="stylesheet" href="assets/textbook.css">
+<script src="assets/corpus.js" defer></script>
+<script src="assets/textbook.js" defer></script>
+<script src="assets/ch01.js" defer></script>
+</head>
+<body data-ch="ch1">
+<div id="prog"></div>
+
+<header class="spine">
+  <div class="spine-in">
+    <a class="spine-home" href="index.html">Prediction&nbsp;→&nbsp;Agency</a>
+    <nav class="spine-track" aria-label="Course spine">
+      <a href="ch01.html" aria-current="page"><span class="sn">1</span>Prediction</a>
+      <a href="ch02.html"><span class="sn">2</span>Tokens</a>
+      <a href="ch03.html"><span class="sn">3</span>Vectors</a>
+      <a href="ch04.html"><span class="sn">4</span>Geometry</a>
+      <a class="future" href="index.html#roadmap"><span class="sn">5</span>Memory</a>
+      <a class="future" href="index.html#roadmap"><span class="sn">6</span>Attention</a>
+      <a class="future" href="index.html#roadmap"><span class="sn">7</span>Transformer</a>
+      <a class="future" href="index.html#roadmap"><span class="sn">8</span>Pretraining</a>
+      <a class="future" href="index.html#roadmap"><span class="sn">9–12</span>Contracts → Measurement</a>
+    </nav>
+    <div class="spine-tools"><button class="tbtn" id="theme" type="button">Dark</button></div>
+  </div>
+</header>
+
+<div class="wrap"><div class="shell">
+<main>
+
+<div class="chead">
+  <div class="kick">Volume I · Part I · Chapter 1 <b>— Prediction and representation</b></div>
+  <h1>The language-modeling problem</h1>
+  <p class="dek">Before any architecture, there is a task. Almost everything strange about these systems follows from what that task does and does not ask for.</p>
+</div>
+
+<nav class="contract" aria-label="How this chapter reasons">
+  <div class="contract-t">How this chapter reasons</div>
+  <ol>
+    <li data-target="#predict"><span class="mv mv-need">Need</span><a class="txt" data-target="#predict" href="#predict">Continuing text forces you to rank every candidate, not name one</a></li>
+    <li data-target="#counting"><span class="mv mv-mech">Mechanism</span><a class="txt" data-target="#counting" href="#counting">Count how often each continuation followed this context, and divide</a></li>
+    <li data-target="#generate"><span class="mv mv-cons">Consequence</span><a class="txt" data-target="#generate" href="#generate">A ranking machine is also a generator — and its two failure modes appear</a></li>
+    <li data-target="#measure"><span class="mv mv-cons">Consequence</span><a class="txt" data-target="#measure" href="#measure">Prediction quality becomes a measurable number: surprise per token</a></li>
+    <li data-target="#sparsity"><span class="mv mv-limit">Limit</span><a class="txt" data-target="#sparsity" href="#sparsity">Counting cannot generalise, and more data does not rescue it</a></li>
+    <li data-target="#understanding"><span class="mv mv-evid">Evidence</span><a class="txt" data-target="#understanding" href="#understanding">What this task licenses us to claim, and what it does not</a></li>
+  </ol>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="predict" data-move="need">
+<div class="move need"><span class="n">§1.1</span> The need</div>
+<h2>You already know how to do this</h2>
+
+<p class="lede">Read this fragment and stop at the gap: <em>“He filled the lamp with ___”</em>. Something arrived before you decided to look for it. Probably <em>oil</em>. Possibly <em>water</em>, or <em>kerosene</em>, or <em>paraffin</em>. Almost certainly not <em>Tuesday</em>, and not because <em>Tuesday</em> is ungrammatical there — it is — but because nothing in your experience of lamps and filling and English put it in contention.</p>
+
+<p>Now a different gap: <em>“The keeper ___”</em>. This time no single word arrives. A dozen do, none of them insistent. The gap is genuinely open.</p>
+
+<p>Those two experiences are the whole chapter in miniature. A machine that continues text has to handle both cases with the same equipment. It cannot only name its favourite candidate, because in the second case naming a favourite badly misrepresents the situation — it hides the fact that the context left the question open. Whatever the machine produces must express not just <em>which</em> continuations are plausible but <em>how much</em> the context has narrowed the field.</p>
+
+<div class="fig exp" id="fig-1-1">
+  <div class="fig-hd"><b>Exhibit 1.1</b> · interactive</div>
+  <div class="fig-t">Two kinds of gap</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Commit to a continuation for each fragment before reading on. Your pick is scored against the actual corpus — the short narrative this book counts from — not against my opinion.</p>
+    <div id="lab-1-1"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> the first two fragments are nearly determined by their context; the third is not. A useful prediction machine has to be able to say “almost certainly <em>steps</em>” and “I genuinely don’t know, but here are the odds” in the same language.</p>
+</div>
+
+<h3>From a guess to a distribution</h3>
+
+<p>The language that does both jobs is probability. Instead of choosing a continuation, the machine assigns a number to <em>every</em> token in its <button class="term" data-t="vocabulary">vocabulary</button> — every candidate it is capable of emitting — such that the numbers are non-negative and sum to one. That object is a <button class="term" data-t="distribution">probability distribution</button>, and producing it, given some preceding text, is the entire job description of a <button class="term" data-t="language-model">language model</button>.</p>
+
+<p>The sum-to-one constraint is doing more work than it appears. It means the machine cannot be enthusiastic about everything: belief is a fixed budget, and raising one candidate necessarily lowers others. That is what makes the output <em>informative</em> rather than merely positive, and it is what will let us score the machine later in this chapter.</p>
+
+<p>Two consequences follow immediately, and both will matter for the rest of the book.</p>
+
+<p>First, probabilities <em>compose</em>. If you can produce the distribution for the next token given everything before it, you can score a whole passage by multiplying: the chance of the first token, times the chance of the second given the first, and so on to the end. This is not a modelling trick; it is an identity from probability, the <em>chain rule</em>, and it is exact.</p>
+
+<div class="eqn">
+  <div class="eqn-t">Equation 1.1 · How a passage’s probability decomposes into next-token predictions</div>
+  <div class="eqn-m">
+    <math display="block">
+      <mrow data-ex="joint"><mi>P</mi><mo>(</mo><msub><mi>w</mi><mn>1</mn></msub><mo>,</mo><mo>…</mo><mo>,</mo><msub><mi>w</mi><mi>T</mi></msub><mo>)</mo></mrow>
+      <mo>=</mo>
+      <mrow data-ex="prod"><munderover><mo>∏</mo><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow><mi>T</mi></munderover></mrow>
+      <mrow data-ex="cond"><mi>P</mi><mo>(</mo><msub><mi>w</mi><mi>t</mi></msub><mo>∣</mo><msub><mi>w</mi><mrow><mn>1</mn><mo>:</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>)</mo></mrow>
+    </math>
+  </div>
+  <div class="eqn-r"><b>Read it as:</b> the probability of a whole passage equals the product, over every position in it, of the probability the model gave to the token that actually appeared there — given only the tokens before it. Modelling one step therefore models everything.</div>
+</div>
+
+<p>Second, that product is a terrible number to work with. Multiply a few hundred quantities smaller than one and you get a value no computer can represent and no human can compare. Take logarithms and the product becomes a sum, small numbers become manageable negative ones, and — as we will see in <a href="#measure">§1.4</a> — the sum has an interpretation of its own: total surprise.</p>
+
+<div class="fig exp" id="fig-1-2">
+  <div class="fig-hd"><b>Exhibit 1.2</b> · interactive</div>
+  <div class="fig-t">The same sentence, scored two ways</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Step through the sentence one token at a time, then switch the accumulator from <em>multiply probabilities</em> to <em>add surprise</em> and step through again.</p>
+    <div id="lab-1-2"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> the running product collapses toward zero and stops being legible after a handful of tokens; the running sum of surprise stays on a human scale and grows in visible jumps exactly where the sentence was hard to predict. Same information, one usable form.</p>
+</div>
+
+<div class="check" data-check="c1q1" data-answer="1">
+  <div class="check-hd">Commit before reading on</div>
+  <p class="check-q">A model assigns the sentence <em>“the boats went out with the tide”</em> a probability of 10<sup>−9</sup>. What does that tell you about the sentence?</p>
+  <ul class="opts">
+    <li><button class="opt" type="button"><span class="k">A</span><span>The model considers it nearly impossible English.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">B</span><span>Almost nothing on its own — long sequences have small probabilities even when every step was confidently predicted.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">C</span><span>The model is badly trained; a good model would score it near 1.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">D</span><span>It tells you the sentence appeared roughly once per billion tokens of training data.</span></button></li>
+  </ul>
+  <div class="verdict ok" data-for="ok" hidden><span class="vt">Committed · correct</span>Joint probabilities shrink multiplicatively with length, so their absolute size is dominated by how long the sentence is. This is exactly why we report <b>per-token</b> quantities — surprise per token, and perplexity — rather than the joint probability itself.</div>
+  <div class="verdict no" data-for="no" hidden><span class="vt">Committed · not quite</span>The answer is <b>B</b>. Seven tokens each predicted at around 1 in 10 give 10<sup>−7</sup>; a couple of harder tokens take you to 10<sup>−9</sup> with no failure anywhere. Absolute joint probability mostly measures length, which is why §1.4 normalises it per token.</div>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="counting" data-move="mech">
+<div class="move mech"><span class="n">§1.2</span> The first mechanism</div>
+<h2>Count, then divide</h2>
+
+<p>We need <span class="m">P(next token | preceding text)</span>. We have a <button class="term" data-t="corpus">corpus</button> of text in which people already made those choices. The most direct thing imaginable: go and look. To estimate the probability of <em>oil</em> after <em>“filled the lamp with”</em>, count how many times that context appears, count how many of those times <em>oil</em> came next, and divide.</p>
+
+<div class="eqn">
+  <div class="eqn-t">Equation 1.2 · Estimating a next-token probability by counting</div>
+  <div class="eqn-m">
+    <math display="block">
+      <mrow data-ex="phat"><mover><mi>P</mi><mo>^</mo></mover><mo>(</mo><mi>w</mi><mo>∣</mo><mi>c</mi><mo>)</mo></mrow>
+      <mo>=</mo>
+      <mfrac>
+        <mrow data-ex="numer"><mi>count</mi><mo>(</mo><mi>c</mi><mo>,</mo><mi>w</mi><mo>)</mo></mrow>
+        <mrow data-ex="denom"><mi>count</mi><mo>(</mo><mi>c</mi><mo>)</mo></mrow>
+      </mfrac>
+    </math>
+  </div>
+  <div class="eqn-r"><b>Read it as:</b> of all the times context <span class="m">c</span> occurred in the corpus, the fraction of times the very next token was <span class="m">w</span>. The hat on <span class="m">P</span> marks it as an estimate from a finite sample rather than a true probability.</div>
+</div>
+
+<p>One problem is immediate. If <span class="m">c</span> means “all preceding text”, then almost every context in existence occurred exactly zero times, and the fraction is undefined. So we truncate: let the context be only the previous <span class="m">n−1</span> tokens. That gives the <em>n</em>-gram model — <span class="m">n=2</span> looks back one token, <span class="m">n=3</span> looks back two, and so on. The truncation is an assumption about language (that distant words stop mattering) which is plainly false, and we adopt it anyway because it makes counting possible. Watching a false-but-useful assumption earn its keep and then break is the standard rhythm of this field; get used to it here, where it is cheap.</p>
+
+<div class="fig exp" id="fig-1-3">
+  <div class="fig-hd"><b>Exhibit 1.3</b> · interactive · runs on the corpus in your browser</div>
+  <div class="fig-t">A counting model, queried directly</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Pick a context, then raise <span class="m">n</span>. Watch two numbers move in opposite directions: how <em>sharp</em> the prediction is, and how many times the context was ever seen.</p>
+    <div id="lab-1-3"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> longer contexts give confident, specific predictions <em>when they are found at all</em>, and are found less and less often. At <span class="m">n=5</span> most contexts have been seen exactly once, so the model’s “certainty” is one person’s single choice, restated as a probability of 1. Confidence and evidence are moving apart.</p>
+</div>
+
+<p>That last observation deserves a name, because it recurs at every scale of this subject: a model can be <em>sharp</em> for two entirely different reasons — because the evidence is overwhelming, or because the evidence is a single example. Nothing in the number distinguishes them. Chapter 12 will build the measurement discipline that keeps those cases apart; Chapter 27 will treat the failure to do so as a reliability problem.</p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="generate" data-move="cons">
+<div class="move cons"><span class="n">§1.3</span> First consequence</div>
+<h2>A predictor is a generator</h2>
+
+<p>Nothing about the machine we just built was designed to write. It only scores continuations. But a scorer can be run forward: draw a token from the distribution, append it to the context, ask again. This loop — <em>autoregressive generation</em> — is how every system in this book produces text, including the ones that will take twenty-six chapters to reach. The loop is not the hard part. The distribution is.</p>
+
+<p>Which means we can already look at what our counting model has to say, and the diagnosis will be sharper than any description of it.</p>
+
+<div class="fig exp" id="fig-1-4">
+  <div class="fig-hd"><b>Exhibit 1.4</b> · interactive</div>
+  <div class="fig-t">Generation at every context length, with copying made visible</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Generate at <span class="m">n=2</span>, then at <span class="m">n=5</span>. Highlighted spans are passages of six or more tokens copied verbatim from the corpus.</p>
+    <div id="lab-1-4"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> at low <span class="m">n</span> the output is locally grammatical and globally incoherent — it forgets what it is talking about within a few words. At high <span class="m">n</span> it becomes fluent and almost entirely highlighted: it is reciting. There is no setting that is both original and coherent. That absence is the finding.</p>
+</div>
+
+<p>Both failures come from the same place. With a short context the model has plenty of evidence but almost no information about what is going on; with a long context it has all the information and almost no evidence, so its only option is to reproduce the one continuation it saw. The dial does not trade off quality against cost. It trades <em>coherence</em> against <em>memorisation</em>, and both endpoints are useless.</p>
+
+<div class="aside-box">
+  <div class="ab-t">A word about temperature</div>
+  <p>The generator has a second control, <em>temperature</em>, which flattens or sharpens the distribution before sampling. Turn it down and the model always takes its favourite continuation; turn it up and rare tokens get a real chance. It is worth playing with because it will return, in Chapter 11, as a genuine product decision. Note what it cannot do here: no temperature setting adds knowledge the counts do not contain. A control over how you sample is not a control over what the model knows.</p>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="measure" data-move="cons">
+<div class="move cons"><span class="n">§1.4</span> Second consequence</div>
+<h2>Surprise, per token</h2>
+
+<p>“It reads badly” is not a measurement. If prediction is the task, the natural test is: take text the model has never seen, and ask how much probability it assigned to what actually happened. High probability on the truth is good. The convention is to work in logarithms, which turns the product of Equation 1.1 into a sum, and to flip the sign so that lower is better.</p>
+
+<p>The resulting quantity, in base 2, is <em>bits of surprise</em>. It answers: how many yes/no questions’ worth of uncertainty did the model still have about this token? Zero bits means it was certain and right. One bit means it was down to a coin flip. Ten bits means it was as lost as someone guessing uniformly among a thousand options.</p>
+
+<div class="eqn">
+  <div class="eqn-t">Equation 1.3 · Average surprise per token — the training and evaluation objective</div>
+  <div class="eqn-m">
+    <math display="block">
+      <mrow data-ex="loss"><mi>L</mi></mrow><mo>=</mo>
+      <mo>−</mo><mfrac><mn>1</mn><mi>T</mi></mfrac>
+      <mrow data-ex="sum"><munderover><mo>∑</mo><mrow><mi>t</mi><mo>=</mo><mn>1</mn></mrow><mi>T</mi></munderover></mrow>
+      <mrow data-ex="log"><msub><mi>log</mi><mn>2</mn></msub></mrow>
+      <mrow data-ex="ptrue"><mi>P</mi><mo>(</mo><msub><mi>w</mi><mi>t</mi></msub><mo>∣</mo><msub><mi>w</mi><mrow><mn>1</mn><mo>:</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>)</mo></mrow>
+    </math>
+  </div>
+  <div class="eqn-r"><b>Read it as:</b> for every position, take the probability the model gave the token that actually appeared, convert it to bits of surprise, and average. This is <button class="term" data-t="cross-entropy">cross-entropy loss</button> — the same quantity that will train every model in this book, used here to grade one.</div>
+</div>
+
+<p>Averaging per token is what makes the number comparable across texts of different lengths, which the joint probability of Equation 1.1 was not. Exponentiating it gives a form many people find easier to feel:</p>
+
+<div class="eqn">
+  <div class="eqn-t">Equation 1.4 · Perplexity — average surprise as an effective number of choices</div>
+  <div class="eqn-m">
+    <math display="block">
+      <mrow data-ex="ppl"><mi>PPL</mi></mrow><mo>=</mo>
+      <msup><mn>2</mn><mrow data-ex="loss">
+        <mi>L</mi>
+      </mrow></msup>
+    </math>
+  </div>
+  <div class="eqn-r"><b>Read it as:</b> <button class="term" data-t="perplexity">perplexity</button> converts bits back into a count of options. A loss of 4 bits means a perplexity of 16: the model was on average as uncertain as someone picking uniformly from 16 candidates. Lower is better; 1 would be perfect prediction.</div>
+</div>
+
+<div class="fig exp" id="fig-1-5">
+  <div class="fig-hd"><b>Exhibit 1.5</b> · interactive · measured on held-out text</div>
+  <div class="fig-t">Scoring a passage the model has never seen</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Leave smoothing at zero and score the held-out passage. Then raise smoothing off zero and score again.</p>
+    <div id="lab-1-5"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> with no smoothing the loss is <em>infinite</em>, and the exhibit counts how many tokens caused it. Each one is the model assigning probability exactly zero to something that then happened — the strongest possible claim, made on no evidence. Any positive smoothing removes the infinity and reveals the model’s real, mediocre quality underneath.</p>
+</div>
+
+<p>Zero probability is not caution; it is certainty. A model that has never seen <em>“grandson”</em> after <em>“the baker’s”</em> and therefore rules it out has confused <em>absent from my sample</em> with <em>impossible</em>. The standard patch is to reserve a little probability for everything: add a small constant <span class="m">k</span> to every count before dividing.</p>
+
+<div class="eqn">
+  <div class="eqn-t">Equation 1.5 · Add-<span class="m">k</span> smoothing — buying insurance against the unseen</div>
+  <div class="eqn-m">
+    <math display="block">
+      <mrow data-ex="phatk"><msub><mover><mi>P</mi><mo>^</mo></mover><mi>k</mi></msub><mo>(</mo><mi>w</mi><mo>∣</mo><mi>c</mi><mo>)</mo></mrow>
+      <mo>=</mo>
+      <mfrac>
+        <mrow><mi>count</mi><mo>(</mo><mi>c</mi><mo>,</mo><mi>w</mi><mo>)</mo><mo>+</mo><mrow data-ex="k"><mi>k</mi></mrow></mrow>
+        <mrow><mi>count</mi><mo>(</mo><mi>c</mi><mo>)</mo><mo>+</mo><mrow data-ex="kv"><mi>k</mi><mi>V</mi></mrow></mrow>
+      </mfrac>
+    </math>
+  </div>
+  <div class="eqn-r"><b>Read it as:</b> pretend you saw every vocabulary item <span class="m">k</span> extra times after this context. The denominator grows by <span class="m">kV</span> to keep the distribution summing to one, so the insurance is paid for out of the probability of the tokens you did observe.</div>
+</div>
+
+<p>Smoothing converts an infinite loss into a finite one. Notice what it does not do: the probability it gives the unseen token is the same as the probability it gives every other unseen token in the vocabulary. <em>Grandson</em> and <em>Tuesday</em> and <em>xylophone</em> are treated as equally likely after <em>“the baker’s”</em>. The model has no way to say that one of them is like something it has seen. Hold onto that sentence — it is the hinge of the next three chapters.</p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="sparsity" data-move="limit">
+<div class="move limit"><span class="n">§1.5</span> The limit</div>
+<h2>Why counting cannot be fixed</h2>
+
+<p>The obvious response to everything above is: the corpus is tiny, use more data. It is worth taking that objection seriously, because the answer determines whether this chapter is a warm-up or a dead end.</p>
+
+<div class="fig exp" id="fig-1-6">
+  <div class="fig-hd"><b>Exhibit 1.6</b> · measured live</div>
+  <div class="fig-t">How often the model has anything to go on</div>
+  <div class="fig-body">
+    <div id="lab-1-6"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> as the context lengthens, the share of held-out positions whose context was never seen in training climbs toward everything. The model’s predictions do not get worse gradually; they stop existing. This is <em>data sparsity</em>, and it is a property of language, not of this corpus.</p>
+</div>
+
+<div class="check" data-check="c1q2" data-answer="2">
+  <div class="check-hd">Commit before reading on</div>
+  <p class="check-q">You multiply the corpus by 10,000. What happens to the fraction of held-out 5-token contexts that were never seen in training?</p>
+  <ul class="opts">
+    <li><button class="opt" type="button"><span class="k">A</span><span>It falls to roughly zero — 10,000× more text covers essentially all of the language.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">B</span><span>It stays about the same; corpus size does not affect coverage.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">C</span><span>It falls substantially but stays stubbornly large, because new contexts keep arriving as fast as text does.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">D</span><span>It rises, because a bigger vocabulary means more possible contexts.</span></button></li>
+  </ul>
+  <div class="verdict ok" data-for="ok" hidden><span class="vt">Committed · correct</span>And the next exhibit shows the mechanism behind that stubbornness. The vocabulary itself never stops growing with corpus size, so the supply of never-before-seen contexts never runs out.</div>
+  <div class="verdict no" data-for="no" hidden><span class="vt">Committed · not quite</span>The answer is <b>C</b>. Coverage genuinely improves with scale — this is not a claim that data does not help — but the tail of language is inexhaustible. The next exhibit measures why.</div>
+</div>
+
+<div class="fig exp" id="fig-1-7">
+  <div class="fig-hd"><b>Exhibit 1.7</b> · measured live · two views</div>
+  <div class="fig-t">The shape of the tail, and why it never ends</div>
+  <div class="fig-body">
+    <p class="do"><b>Do this</b> Read the frequency view first, then switch to the growth view.</p>
+    <div id="lab-1-7"></div>
+  </div>
+  <p class="fig-cap"><b>What to notice:</b> a handful of tokens account for most of the text while a large share occur exactly once — that near-straight line on logarithmic axes is the signature of a heavy tail. The growth view shows the consequence: vocabulary keeps climbing as the corpus grows, with no sign of flattening. Rare events are not a finite list you can eventually finish collecting.</p>
+</div>
+
+<p>So the objection fails, but instructively. More data does help — coverage really does improve, and this is why scale will matter enormously later. What more data cannot do is change the <em>kind</em> of thing the model is. A counting model treats every context as an atom, unrelated to every other context. It has seen <em>“filled the lamp with oil”</em> and it has learned nothing whatsoever about <em>“filled the lantern with oil”</em>. Each context needs its own evidence, and there will always be more contexts than evidence.</p>
+
+<p>Say that as a requirement and the next three chapters write themselves. We need contexts that are <em>similar</em> to share evidence. For that, the model needs some representation of tokens and contexts in which similarity is expressible at all — which the integer identity of a token flatly is not. That is Chapter 2 (what are the units?), Chapter 3 (what does the model turn them into?), and Chapter 4 (what structure does that representation acquire, and from what?).</p>
+
+<div class="recon" data-recon="c1r1">
+  <div class="r-k">Reconstruct — write it before you read it</div>
+  <p class="r-q">In four or five sentences, explain to a colleague why a counting model of language fails, without using the words <em>sparsity</em> or <em>generalise</em>.</p>
+  <textarea rows="5" placeholder="Your explanation…" aria-label="Your reconstruction"></textarea>
+  <button class="btn ghost" type="button">I’ve written mine — show a model answer</button>
+  <div class="r-model" hidden>
+    <p><strong>A model answer.</strong> A counting model answers “what comes next?” by finding the identical preceding words somewhere in its text collection and reporting what followed. To make useful predictions it needs a long stretch of preceding words, but the longer that stretch, the less often it appears in the collection at all — and most of the time it appears once or never. When it appears once, the model reports that single continuation with total confidence. When it appears never, the model has nothing to say, and treats every possible word as equally plausible. It cannot use the fact that a nearly identical stretch of words <em>was</em> in the collection, because it has no way to represent two contexts as nearly identical. Every context is a separate lookup key that either matches or does not.</p>
+    <p><strong>Check yourself:</strong> does your version explain the <em>single-example overconfidence</em> as well as the <em>missing context</em>? Both come from the same lookup-key design, and the second is the one people usually remember.</p>
+  </div>
+</div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<section id="understanding" data-move="evid">
+<div class="move evid"><span class="n">§1.6</span> Evidence and boundary</div>
+<h2>What the task licenses us to say</h2>
+
+<p>We have defined a task — assign probabilities to continuations — and shown one mechanism that performs it badly. Before moving on, it is worth being precise about what a system trained on this task is, because the vocabulary people use around it will otherwise contaminate your reasoning for the next thirty chapters.</p>
+
+<p>Three claims, sorted by how much they are worth.</p>
+
+<p><span class="chip est">Established</span> A trained language model computes a distribution over next tokens, and that computation can be inspected, measured, and reproduced. Its loss on held-out text is a real number that decreases with better modelling. Everything in this book’s technical content sits at this level.</p>
+
+<p><span class="chip inf">Inferred</span> A system that predicts extremely well must have internal structure that tracks features of the text — syntax, entities, topic, register — because prediction at that accuracy is not achievable otherwise. This is a strong and well-supported inference, and Chapter 28 will look for that structure directly. It remains an inference: “it must be representing something like X” is a hypothesis about internals drawn from behaviour.</p>
+
+<p><span class="chip open">Open</span> Whether such a system <em>understands</em> the text. This is not a question the training objective answers, and it is not a question a benchmark answers either. It is open in the specific sense that reasonable people disagree about what would count as evidence. Chapter 32 returns to it deliberately, at the end, when you have enough mechanism in hand to argue about it usefully.</p>
+
+<p>The practical discipline is to notice which of the three levels a claim belongs to — especially when the claim is made by someone selling you something. A vendor saying “our model understands your documents” has made an Open claim in the grammar of an Established one. The right response is not scepticism about the product; it is a request for the measurement.</p>
+
+<div class="check" data-check="c1q3" data-answer="3">
+  <div class="check-hd">Transfer — a decision, not a definition</div>
+  <p class="check-q">A team proposes to measure their assistant’s quality by its perplexity on a sample of your company’s support tickets. Two candidate models are compared. What is the first thing you should ask?</p>
+  <ul class="opts">
+    <li><button class="opt" type="button"><span class="k">A</span><span>Whether perplexity is low enough to ship.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">B</span><span>Whether users prefer the lower-perplexity model in a blind test.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">C</span><span>Whether the tickets are representative of the traffic the assistant will see.</span></button></li>
+    <li><button class="opt" type="button"><span class="k">D</span><span>Whether the two models tokenize the tickets the same way, and whether either has already trained on them.</span></button></li>
+  </ul>
+  <div class="verdict ok" data-for="ok" hidden><span class="vt">Committed · correct</span>Perplexity is an average over tokens, so two models that cut text into different units are reporting scores with different denominators — not comparable, however carefully you measure. And a model that has already seen the tickets will score beautifully while telling you nothing. Chapter 2 makes the denominator problem concrete; Chapter 12 makes contamination a discipline. <b>C</b> and <b>B</b> are both good questions — they are just not the ones that decide whether the comparison means anything at all.</div>
+  <div class="verdict no" data-for="no" hidden><span class="vt">Committed · think again</span>The answer is <b>D</b>. Your choice is a reasonable question about validity, but it assumes the two numbers are comparable in the first place. Perplexity is <em>per token</em>, and different tokenizers cut text into different numbers of tokens — different denominators, incomparable averages. Contamination is the second killer: a model trained on those tickets will win the comparison and lose in production.</div>
+</div>
+</section>
+
+<div class="carry">
+  <div class="c-k">Carry forward</div>
+  <ul>
+    <li><b>Settled:</b> the task is a distribution over next tokens; the chain rule makes one-step prediction sufficient; cross-entropy per token measures it; perplexity restates that as an effective number of choices.</li>
+    <li><b>Broken:</b> counting cannot share evidence between similar contexts, so it is either incoherent or reciting, and no amount of data changes that.</li>
+    <li><b>Unresolved, and load-bearing:</b> we have been saying “token” as though it were obvious. It is not. Before we can represent a token, we have to decide what one <em>is</em> — and that decision turns out to have consequences for cost, for languages other than English, and for whether two models’ scores can be compared at all.</li>
+  </ul>
+  <div class="c-next">→ Chapter 2 makes that decision, and shows what it costs.</div>
+</div>
+
+<nav class="pager">
+  <a class="prev" href="index.html"><span class="pk">Back</span><span class="pt">Front matter · how to read this book</span></a>
+  <a class="next" href="ch02.html"><span class="pk">Chapter 2</span><span class="pt">The representation bargain</span></a>
+</nav>
+
+</main>
+
+<nav class="aside-nav" aria-label="In this chapter">
+  <div class="an-t">In this chapter</div>
+  <a data-target="#predict" href="#predict"><span class="an-mv">Need</span>You already know how to do this</a>
+  <a data-target="#counting" href="#counting"><span class="an-mv">Mechanism</span>Count, then divide</a>
+  <a data-target="#generate" href="#generate"><span class="an-mv">Consequence</span>A predictor is a generator</a>
+  <a data-target="#measure" href="#measure"><span class="an-mv">Consequence</span>Surprise, per token</a>
+  <a data-target="#sparsity" href="#sparsity"><span class="an-mv">Limit</span>Why counting cannot be fixed</a>
+  <a data-target="#understanding" href="#understanding"><span class="an-mv">Evidence</span>What the task licenses</a>
+</nav>
+</div></div>
+</body>
+</html>
