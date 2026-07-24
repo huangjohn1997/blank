@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chapter 1 — Voice Test — How Language Models Learned to Talk</title>
+<meta name="color-scheme" content="light dark">
+<style>
+  :root {
+    --paper: #faf8f4;
+    --ink: #1f1d1a;
+    --ink-soft: #55504a;
+    --ink-faint: #8a837a;
+    --rule: #e0dad0;
+    --rule-strong: #cbc3b7;
+    --accent: #2f5d7c;
+    --accent-soft: #eef2f6;
+    --warn: #9a5326;
+    --warn-soft: #f8f1ea;
+    --measure: 35rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #16151a;
+      --ink: #e8e4dd;
+      --ink-soft: #a8a29a;
+      --ink-faint: #7c766d;
+      --rule: #2c2a30;
+      --rule-strong: #3d3a42;
+      --accent: #7fb3d4;
+      --accent-soft: #1c222a;
+      --warn: #d09a6a;
+      --warn-soft: #221c17;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+    font-size: 18px;
+    line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .sans {
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+  }
+
+  /* ---------- masthead ---------- */
+  header.masthead {
+    border-bottom: 1px solid var(--rule);
+    padding: 2.4rem 1.5rem 0;
+  }
+  .masthead-inner { max-width: var(--measure); margin: 0 auto; }
+  .booktitle {
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 0.4rem;
+    font-weight: 600;
+  }
+  .testtitle {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem;
+    letter-spacing: -0.01em;
+  }
+  .testblurb {
+    color: var(--ink-soft);
+    font-size: 0.95rem;
+    margin: 0 0 1.6rem;
+  }
+
+  /* ---------- tabs ---------- */
+  .tabs {
+    display: flex;
+    gap: 0;
+    max-width: var(--measure);
+    margin: 0 auto;
+    position: relative;
+    top: 1px;
+  }
+  .tab {
+    appearance: none;
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--ink-faint);
+    padding: 0.65rem 1.05rem;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab[aria-selected="true"] {
+    color: var(--accent);
+    background: var(--paper);
+    border-color: var(--rule);
+    border-bottom: 1px solid var(--paper);
+  }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- panels ---------- */
+  main { padding: 0 1.5rem 6rem; }
+  .panel {
+    max-width: var(--measure);
+    margin: 0 auto;
+    padding-top: 3rem;
+  }
+  .panel[hidden] { display: none; }
+
+  .meta {
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 0.7rem;
+    margin-bottom: 2.4rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  h1.ch {
+    font-size: 2rem;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    margin: 0 0 2.6rem;
+  }
+  h1.ch .num {
+    display: block;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 0.7rem;
+  }
+  h2 {
+    font-size: 1.06rem;
+    font-weight: 600;
+    margin: 3rem 0 1rem;
+    letter-spacing: -0.005em;
+  }
+  h2 .sec {
+    color: var(--ink-faint);
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-right: 0.5rem;
+  }
+  p { margin: 0 0 1.25rem; }
+  strong { font-weight: 600; }
+
+  .lede::first-letter {
+    float: left;
+    font-size: 3.5rem;
+    line-height: 0.82;
+    padding: 0.1rem 0.5rem 0 0;
+    font-weight: 600;
+  }
+
+  /* blank-line display sentence */
+  .canon {
+    margin: 1.8rem 0;
+    padding: 1.1rem 1.3rem;
+    background: var(--accent-soft);
+    border-left: 2px solid var(--accent);
+    font-size: 1.1rem;
+  }
+  .canon .blank {
+    display: inline-block;
+    width: 4.5rem;
+    border-bottom: 1.5px solid var(--ink-soft);
+  }
+
+  /* sidebar devices */
+  .aside {
+    margin: 2rem 0;
+    padding: 1.1rem 1.3rem;
+    border: 1px solid var(--rule-strong);
+    border-left-width: 3px;
+    font-size: 0.94rem;
+    line-height: 1.6;
+    color: var(--ink-soft);
+  }
+  .aside p:last-child { margin-bottom: 0; }
+  .aside .label {
+    display: block;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 0.55rem;
+  }
+  .aside.breaks { border-left-color: var(--warn); background: var(--warn-soft); }
+  .aside.breaks .label { color: var(--warn); }
+  .aside.unknown { border-left-color: var(--accent); background: var(--accent-soft); }
+  .aside.unknown .label { color: var(--accent); }
+
+  /* equation block */
+  .eq {
+    margin: 1.5rem 0;
+    padding: 1.2rem 1rem;
+    text-align: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.94rem;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    overflow-x: auto;
+  }
+  .eq .shapes {
+    display: block;
+    margin-top: 0.7rem;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    font-size: 0.74rem;
+    letter-spacing: 0.03em;
+    color: var(--ink-faint);
+    text-transform: none;
+  }
+
+  /* generated samples */
+  .samples { margin: 1.8rem 0; }
+  .sample {
+    border-top: 1px solid var(--rule);
+    padding: 0.85rem 0;
+  }
+  .sample:last-child { border-bottom: 1px solid var(--rule); }
+  .sample .n {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    display: block;
+    margin-bottom: 0.3rem;
+  }
+  .sample .txt { font-size: 0.96rem; color: var(--ink-soft); font-style: italic; }
+
+  blockquote.shannon {
+    margin: 1.8rem 0;
+    padding-left: 1.2rem;
+    border-left: 2px solid var(--rule-strong);
+    font-size: 0.95rem;
+    color: var(--ink-soft);
+    font-variant: small-caps;
+    letter-spacing: 0.02em;
+  }
+
+  /* bedrock table */
+  table.sort {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.8rem 0;
+    font-size: 0.92rem;
+  }
+  table.sort th {
+    text-align: left;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    border-bottom: 1px solid var(--rule-strong);
+    padding: 0 0.9rem 0.5rem 0;
+    vertical-align: bottom;
+  }
+  table.sort td {
+    padding: 0.7rem 0.9rem 0.7rem 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+    color: var(--ink-soft);
+    width: 50%;
+  }
+
+  ul, ol { margin: 0 0 1.25rem; padding-left: 1.4rem; }
+  li { margin-bottom: 0.5rem; }
+
+  .endnote {
+    margin-top: 3rem;
+    padding-top: 1.4rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.86rem;
+    color: var(--ink-faint);
+  }
+
+  /* ---------- diff panel ---------- */
+  .diffrow {
+    border-top: 1px solid var(--rule);
+    padding: 1.5rem 0;
+  }
+  .diffrow:last-of-type { border-bottom: 1px solid var(--rule); }
+  .diffrow h3 {
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin: 0 0 0.8rem;
+    color: var(--accent);
+  }
+  .diffrow p { margin: 0 0 0.8rem; font-size: 0.96rem; }
+  .quotepair { margin: 0.9rem 0 0; font-size: 0.92rem; }
+  .quotepair div {
+    padding: 0.6rem 0.9rem;
+    border-left: 2px solid var(--rule-strong);
+    margin-bottom: 0.5rem;
+    color: var(--ink-soft);
+  }
+  .quotepair .with { border-left-color: var(--accent); }
+  .quotepair .without { border-left-color: var(--warn); }
+  .quotepair .tag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.64rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--ink-faint);
+  }
+
+  .hint {
+    max-width: var(--measure);
+    margin: 0 auto;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    padding: 0 1.5rem 2.5rem;
+    text-align: center;
+  }
+  kbd {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9em;
+    border: 1px solid var(--rule-strong);
+    border-radius: 3px;
+    padding: 0.05em 0.35em;
+  }
+
+  @media (max-width: 640px) {
+    body { font-size: 17px; }
+    .tabs { overflow-x: auto; }
+    .tab { padding: 0.6rem 0.75rem; font-size: 0.72rem; }
+    h1.ch { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <p class="booktitle">How Language Models Learned to Talk</p>
+    <p class="testtitle">Chapter 1, written twice</p>
+    <p class="testblurb">The same chapter, the same facts, the same sources — once in the senior-engineer voice from the style guide, once in the register that guide exists to prevent. Switch tabs and read the first two paragraphs of each.</p>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Chapter drafts">
+    <button class="tab" role="tab" id="tab-with" aria-controls="panel-with" aria-selected="true">With the voice</button>
+    <button class="tab" role="tab" id="tab-without" aria-controls="panel-without" aria-selected="false">Without the voice</button>
+    <button class="tab" role="tab" id="tab-diff" aria-controls="panel-diff" aria-selected="false">What changed</button>
+  </div>
+</header>
+
+<main>
+
+<!-- ============================================================ -->
+<!-- PANEL 1 — WITH THE VOICE                                      -->
+<!-- ============================================================ -->
+<section class="panel" id="panel-with" role="tabpanel" aria-labelledby="tab-with">
+  <div class="meta">
+    <span>Draft A · senior-engineer voice</span>
+    <span data-wordcount>—</span>
+  </div>
+
+  <h1 class="ch"><span class="num">Chapter One</span>The Guessing Game</h1>
+
+  <h2><span class="sec">1.1</span>An experiment from 1951</h2>
+
+  <p class="lede">Here is a sentence with the last word removed.</p>
+
+  <div class="canon">The engineer torqued the bolt until it <span class="blank"></span></div>
+
+  <p>You already have a guess. Probably a short list — <em>stopped</em>, <em>snapped</em>, <em>seated</em>, <em>gave</em>, <em>broke</em>. You did not consider <em>pineapple</em>. You did not consider <em>the</em>. Nobody explained the rules of that exercise to you, and you were not trying. You have been running it one word ahead of every sentence you have ever heard.</p>
+
+  <p>In 1951 Claude Shannon turned that reflex into a measurement. He sat a person down with a passage of English they had not read, covered it, and asked them to guess the first letter. Wrong, he told them so and they guessed again. Right, he moved to the next letter. What he wrote down was not the text. It was the <em>number of guesses per letter</em>.</p>
+
+  <p>That number is the whole chapter. A reader who needs one guess most of the time is reading text that barely tells them anything new — the letters were already determined by what came before. A reader who needs eleven guesses is being genuinely informed. Shannon had shown three years earlier how to convert those guess counts into a quantity in bits, and when he ran the arithmetic on English prose he got something close to <strong>one bit per character</strong>.</p>
+
+  <p>Hold that against the naive number. Twenty-six letters plus a space is twenty-seven symbols, and distinguishing one of twenty-seven possibilities takes about 4.75 bits. English uses one. Roughly three-quarters of what you are reading right now is redundant, in the strict sense: recoverable from its surroundings by a good enough predictor.</p>
+
+  <p>Shannon was measuring his subjects. But he had also, without setting out to, defined the target that every system in this book is aiming at, and set the score to beat.</p>
+
+  <h2><span class="sec">1.2</span>Why prediction is not a parlor trick</h2>
+
+  <p>Go back to the bolt. Ask what you had to have in your head to produce that short list of candidates.</p>
+
+  <p>You knew that <em>torqued</em> is something done to fasteners. You knew that a bolt is a fastener, and that fasteners fail by shearing or stripping rather than by melting. You knew that <em>until</em> demands a change of state, so the blank wants a verb and not an adjective. You knew that <em>it</em> refers to the bolt and not to the engineer, which is a genuinely hard inference that you made without noticing. You knew English word order well enough that <em>the</em> was never a candidate.</p>
+
+  <p>None of that is vocabulary. All of it is required to score well on a task that looks like a party game.</p>
+
+  <p>Here is the claim the rest of this book rests on: <strong>a system that predicts the next word well enough has to represent the things that determine the next word.</strong> There is no cheap route. You cannot fake your way to a low error rate on English text without picking up syntax, and then facts, and then the way objects behave, because those are the things that decide which word comes next.</p>
+
+  <div class="aside breaks">
+    <span class="label">Where this breaks</span>
+    <p>That claim is an argument, not a theorem, and it has a real limit. Prediction pressure only forces a system to represent what actually leaves a trace in the statistics. If something is true about bolts but never written down, no amount of next-word training will recover it. And a system can score well on a pattern for the wrong reason — matching the shape of an answer rather than the substance. Both of those failures come back in Chapter 12, and neither of them is hypothetical.</p>
+  </div>
+
+  <h2><span class="sec">1.3</span>Prediction and compression are the same problem</h2>
+
+  <p>In 1948 Shannon published the paper that created information theory, and buried in it is a fact worth carrying for the next four hundred pages: <strong>you do not have to transmit what the receiver can already predict.</strong></p>
+
+  <p>Say you are sending English one letter at a time and both ends agree on a predictor. Give short codes to the letters your predictor thinks are likely and long codes to the ones it thinks are unlikely. Common cases cost few bits. Surprises cost many. The better the predictor, the shorter the message — and the improvement is not incidental, it is exactly proportional.</p>
+
+  <p>So compression is a scoreboard. If your model of English can encode a book in fewer bits than mine, your model is better than mine, and you did not need to define "better" first or convene a panel to judge it. That is unusual and it is why the field could make progress: it had a number.</p>
+
+  <p>It also means you should be careful with the deflationary version of what these systems do. "It only predicts the next word" is true. It is not small.</p>
+
+  <h2><span class="sec">1.4</span>The first machine that did it by counting</h2>
+
+  <p>The oldest working language model predates computers and was built by someone with no interest in language.</p>
+
+  <p>In 1913 Andrei Markov worked through twenty thousand letters of Pushkin's <em>Eugene Onegin</em>, sorting each into vowel or consonant, and counted how often each followed the other. He was in an argument about probability theory — a colleague had claimed that the law of large numbers required independent events, and Markov wanted a concrete case of dependent events where it held anyway. Pushkin was a convenient corpus. He got his result, and he left behind the tool.</p>
+
+  <p>The tool is this. To assign a probability to a whole sentence, walk through it word by word, and at each step ask how likely that word was given the few words before it. Then multiply.</p>
+
+  <div class="eq">
+    P(w<sub>1</sub>, w<sub>2</sub>, … , w<sub>T</sub>) &nbsp;=&nbsp; ∏<sub>t</sub> &nbsp;P(w<sub>t</sub> | w<sub>t−1</sub>, w<sub>t−2</sub>)
+    <span class="shapes">In: a sentence of T words. Out: one number between 0 and 1. The window here is two words back, which makes this a trigram model. You will meet this product again as the training objective of every model in this book.</span>
+  </div>
+
+  <p>A model that looks back <em>n</em>−1 words is an <strong>n-gram model</strong>: bigram for one word back, trigram for two, and so on. Fitting one requires no mathematics beyond division. Take a pile of text, count how many times <em>torqued the bolt</em> appears, count how many times <em>torqued the</em> appears, and divide. That ratio is your probability. You now have a language model, and you can build one on paper.</p>
+
+  <p>You can also run it forwards to generate text, which is where it stops being abstract. Shannon did this himself in the 1948 paper, by hand, with a book and a table of word frequencies:</p>
+
+  <blockquote class="shannon">The head and in frontal attack on an English writer that the character of this point is therefore another method for the letters that the time of who ever told the problem for an unexpected</blockquote>
+
+  <p>Every two-word window is plausible English. The passage as a whole is about nothing. That is the exact signature of a small <em>n</em>, and once you have seen it you will recognise it in every generative system that is failing.</p>
+
+  <p>Widen the window and it improves, fast. Here is the same corpus at four settings — a few million words of equipment manuals, which is the corpus you will use in Lab 1:</p>
+
+  <div class="samples">
+    <div class="sample"><span class="n">n = 1 · unigram</span><span class="txt">the of torque to bolt and inspect a the pressure for</span></div>
+    <div class="sample"><span class="n">n = 2 · bigram</span><span class="txt">the bolt to the pressure relief valve and inspect the torque wrench</span></div>
+    <div class="sample"><span class="n">n = 3 · trigram</span><span class="txt">tighten the bolt to the specified torque value and inspect the gasket for damage</span></div>
+    <div class="sample"><span class="n">n = 6 · six-gram</span><span class="txt">tighten the bolt to the specified torque value listed in Table 4-2 and inspect the gasket for damage before reassembly</span></div>
+  </div>
+
+  <p>Read that last one again, though. It is not better. It is a sentence from the manual, reproduced. Somewhere between three and six, the model stopped modelling and started quoting, because by then each six-word window it was asked about had been seen exactly once in the entire corpus and had exactly one possible continuation.</p>
+
+  <p>That is the crack. Let us make it a wall.</p>
+
+  <h2><span class="sec">1.5</span>The wall</h2>
+
+  <p>Take a vocabulary of fifty thousand words, which is modest. A trigram model needs a probability for every ordered triple, so count the cells in the table:</p>
+
+  <div class="eq">
+    50,000<sup>3</sup> &nbsp;=&nbsp; 1.25 × 10<sup>14</sup>
+    <span class="shapes">One hundred twenty-five trillion cells, of which the overwhelming majority you will never observe even once.</span>
+  </div>
+
+  <p>Go to four words back and multiply by fifty thousand again. The table grows exponentially in the window and your corpus does not. A trillion-word corpus, larger than anything assembled before about 2010, fills a vanishing fraction of that table.</p>
+
+  <p>Now notice the shape of the problem, because this is the part that matters and it is easy to get wrong. This is not a data-collection problem. Zipf's law tells you that word frequencies fall off brutally — a handful of words are everywhere and most words are nearly absent — so the triples you are missing are not a random sample you could fix by scraping harder. They are missing structurally, and every word you add to the vocabulary makes it worse by a factor of fifty thousand. You cannot out-collect exponential growth.</p>
+
+  <p>Statisticians spent two decades on this and produced genuinely clever machinery for it: back off to shorter windows when a long one has no data, shave probability mass off what you did observe and redistribute it to what you did not. It works, in the sense that the numbers improve. It does not touch the underlying failure, which is this:</p>
+
+  <p>Your model has counted <em>torqued the bolt</em> nine hundred times, and it has never once seen <em>torqued the screw</em>. It therefore assigns <em>screw</em> a probability of zero, or whatever floor the smoothing gives it. And there is nothing in the model — not one number anywhere in that table — that records the fact that a bolt and a screw are almost the same object. To a counting model, <em>bolt</em> and <em>screw</em> and <em>Wednesday</em> are three unrelated symbols that happen to be spelled differently. Every word is an island. Evidence gathered about one is worth precisely nothing to any other.</p>
+
+  <p>Yoshua Bengio put the name on it in 2003, and it is the name we will use: the <strong>curse of dimensionality</strong>. Discrete symbols in a large vocabulary can never share statistical evidence, so a counting model has to see every combination it will ever be asked about.</p>
+
+  <div class="aside unknown">
+    <span class="label">Real constraint or inherited?</span>
+    <p>Sort what this chapter established. <em>Real:</em> language is statistically predictable and there is a measurable ceiling on how predictable; predicting well requires representing structure; prediction and compression are one problem. Those are not going to change.</p>
+    <p><em>Inherited:</em> that the mechanism is counting. That words are indivisible symbols. That the window is a fixed number of words. Every one of those is a design choice, all three get discarded in the next four chapters, and none of them were ever laws. Keep the two columns separate in your head all semester — you will be asked which column a mechanism belongs in every week.</p>
+  </div>
+
+  <h2><span class="sec">1.6</span>What breaks next</h2>
+
+  <p>Shannon gave us a target and a scoreboard. Markov gave us a machine. The machine hits a wall that is combinatorial, which means no amount of engineering effort on the machine itself will get past it.</p>
+
+  <p>What we need is a representation in which similar words are <em>near</em> each other, so that nine hundred observations of <em>bolt</em> also teach the model something about <em>screw</em>. Get that and the sparsity problem stops being a wall and becomes an approximation problem, which is a kind of problem engineers know how to attack.</p>
+
+  <p>That representation is the subject of Chapter 2. The idea for it was published in 1986, the version that worked arrived in 2003, and it took until 2013 for anyone to make it cheap enough to matter — which tells you something about this field that no architecture diagram will. Most of the ideas were already lying around. What changed was what you could afford to run.</p>
+
+  <div class="endnote">
+    <p><strong>Sources for this chapter.</strong> Shannon, <em>A Mathematical Theory of Communication</em> (1948), for entropy, the compression argument, and the generated passage in §1.4. Shannon, <em>Prediction and Entropy of Printed English</em> (1951), for the guessing experiment and the one-bit-per-character estimate. Markov (1913) on <em>Eugene Onegin</em>. Bengio, Ducharme, Vincent &amp; Jauvin, <em>A Neural Probabilistic Language Model</em> (2003), for the curse-of-dimensionality framing. The generated samples in §1.4 are illustrative, from the Lab 1 corpus.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- PANEL 2 — WITHOUT THE VOICE                                   -->
+<!-- ============================================================ -->
+<section class="panel" id="panel-without" role="tabpanel" aria-labelledby="tab-without" hidden>
+  <div class="meta">
+    <span>Draft B · conventional textbook register</span>
+    <span data-wordcount>—</span>
+  </div>
+
+  <h1 class="ch"><span class="num">Chapter One</span>Introduction to Statistical Language Modeling</h1>
+
+  <h2><span class="sec">1.1</span>Overview</h2>
+
+  <p>In this chapter, we introduce the foundational concepts of statistical language modeling. We begin with a review of information-theoretic preliminaries, proceed to a formal definition of the language modeling objective, and conclude with an analysis of n-gram models and their limitations. Familiarity with basic probability is assumed.</p>
+
+  <h2><span class="sec">1.2</span>Information-theoretic preliminaries</h2>
+
+  <p>The information content of a discrete random variable is quantified by its entropy. For a random variable <em>X</em> with probability mass function <em>p</em>(<em>x</em>), the entropy is defined as:</p>
+
+  <div class="eq">H(X) = −∑<sub>x</sub> p(x) log<sub>2</sub> p(x)</div>
+
+  <p>Entropy is measured in bits and can be interpreted as the expected number of bits required to encode a realization of <em>X</em> under an optimal code. It is important to note that entropy is maximized for the uniform distribution and minimized for a deterministic one.</p>
+
+  <p>Shannon (1948) established the fundamental relationship between the entropy of a source and the minimum achievable expected code length, a result known as the source coding theorem. Shannon (1951) subsequently estimated the entropy rate of printed English using a human-subject prediction protocol, obtaining estimates in the range of approximately 0.6 to 1.3 bits per character. This may be contrasted with log<sub>2</sub>(27) ≈ 4.75 bits per character under a uniform distribution over the 26 letters and the space character, indicating substantial redundancy in natural language.</p>
+
+  <p>The relationship between prediction and compression is a central theme of the literature and provides a principled evaluation criterion: a model which assigns higher likelihood to held-out text induces a shorter encoding of that text, and is therefore considered superior. This motivates the use of perplexity as an evaluation metric, which will be introduced in Chapter 3.</p>
+
+  <h2><span class="sec">1.3</span>The language modeling objective</h2>
+
+  <p>Let <em>V</em> denote a finite vocabulary and let <em>w</em><sub>1</sub>, …, <em>w</em><sub>T</sub> ∈ <em>V</em> denote a sequence of tokens. The objective of language modeling is to learn the joint distribution over such sequences. By the chain rule of probability, this joint distribution may be factorized autoregressively:</p>
+
+  <div class="eq">P(w<sub>1</sub>, …, w<sub>T</sub>) = ∏<sub>t=1</sub><sup>T</sup> P(w<sub>t</sub> | w<sub>1</sub>, …, w<sub>t−1</sub>)</div>
+
+  <p>This factorization is exact and requires no independence assumptions. However, direct estimation of the conditional distributions is intractable, as the conditioning context grows without bound. It is therefore standard to introduce a Markov assumption of order <em>n</em>−1, under which the conditional distribution depends only on the preceding <em>n</em>−1 tokens. Markov (1913) provides an early application of such dependence structures to letter sequences in Russian literature.</p>
+
+  <h2><span class="sec">1.4</span>N-gram models</h2>
+
+  <p>Under the Markov assumption, the resulting model is referred to as an n-gram model. The maximum likelihood estimate of each conditional probability is obtained by relative frequency estimation over a training corpus:</p>
+
+  <div class="eq">P̂(w<sub>t</sub> | w<sub>t−n+1</sub>, …, w<sub>t−1</sub>) = C(w<sub>t−n+1</sub>, …, w<sub>t</sub>) / C(w<sub>t−n+1</sub>, …, w<sub>t−1</sub>)</div>
+
+  <p>where <em>C</em>(·) denotes the count of the specified sequence in the training corpus. N-gram models may be utilized both for scoring and for generation, the latter being performed by ancestral sampling from the estimated conditional distributions. Shannon (1948) presents illustrative samples from low-order word approximations to English, which exhibit local fluency in the absence of global coherence.</p>
+
+  <p>Empirically, model quality improves with increasing <em>n</em> up to a point, beyond which the model begins to reproduce training sequences verbatim as a consequence of data sparsity.</p>
+
+  <h2><span class="sec">1.5</span>Limitations</h2>
+
+  <p>N-gram models are subject to two principal limitations.</p>
+
+  <p>First, the parameter space grows exponentially in <em>n</em>. For a vocabulary of size |<em>V</em>| = 50,000, a trigram model requires the estimation of |<em>V</em>|<sup>3</sup> ≈ 1.25 × 10<sup>14</sup> parameters. Given that corpus sizes grow at most linearly with collection effort, the majority of these parameters cannot be estimated from observed data. Compounding this, the Zipfian distribution of word frequencies ensures that unobserved n-grams are not uniformly distributed across the parameter space. A substantial literature addresses this issue through smoothing and backoff techniques (Katz, 1987; Kneser &amp; Ney, 1995), which redistribute probability mass to unobserved events.</p>
+
+  <p>Second, and more fundamentally, n-gram models employ a discrete symbolic representation in which distinct vocabulary items are treated as mutually orthogonal. Consequently, statistical evidence acquired with respect to one token cannot inform estimates involving a semantically related token. Bengio et al. (2003) characterize this limitation as a manifestation of the curse of dimensionality, and it constitutes the primary motivation for the distributed representations introduced in the following chapter.</p>
+
+  <h2><span class="sec">1.6</span>Summary</h2>
+
+  <ul>
+    <li>Entropy quantifies the information content of a source; English exhibits an entropy rate of approximately 1 bit per character.</li>
+    <li>Prediction and compression are formally equivalent, motivating likelihood-based evaluation.</li>
+    <li>The joint distribution over sequences factorizes autoregressively by the chain rule.</li>
+    <li>N-gram models apply a Markov assumption and estimate conditionals by relative frequency.</li>
+    <li>N-gram models suffer from exponential parameter growth and an inability to generalize across related vocabulary items.</li>
+  </ul>
+
+  <p>In the next chapter, we will introduce distributed representations of words and demonstrate how they address the generalization limitations identified above.</p>
+
+  <div class="endnote">
+    <p><strong>References.</strong> Bengio, Y., Ducharme, R., Vincent, P., &amp; Jauvin, C. (2003). A neural probabilistic language model. <em>JMLR</em>, 3, 1137–1155. · Katz, S. (1987). Estimation of probabilities from sparse data. <em>IEEE ASSP</em>, 35(3). · Kneser, R., &amp; Ney, H. (1995). Improved backing-off for m-gram language modeling. <em>ICASSP</em>. · Markov, A. A. (1913). An example of statistical investigation of the text <em>Eugene Onegin</em>. · Shannon, C. E. (1948). A mathematical theory of communication. <em>BSTJ</em>, 27. · Shannon, C. E. (1951). Prediction and entropy of printed English. <em>BSTJ</em>, 30(1).</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- PANEL 3 — WHAT CHANGED                                        -->
+<!-- ============================================================ -->
+<section class="panel" id="panel-diff" role="tabpanel" aria-labelledby="tab-diff" hidden>
+  <div class="meta">
+    <span>Draft A vs Draft B</span>
+    <span data-wordcount-compare>—</span>
+  </div>
+
+  <h1 class="ch"><span class="num">Notes</span>What changed, and what it cost</h1>
+
+  <p>Draft B is not incompetent. Every claim in it is accurate, the citations are right, it is tighter, and it would pass peer review. That is the point of the test — the failure mode this voice guards against is not error, it is <em>inertness</em>. Seven concrete differences:</p>
+
+  <div class="diffrow">
+    <h3>1 · The chapter opens on a pressure, not a definition</h3>
+    <p>Draft B opens by announcing its own table of contents. Draft A opens by running Shannon's experiment on the reader, using a sentence from their own field, so that the entropy result lands on something they have already felt themselves do.</p>
+    <div class="quotepair">
+      <div class="with"><span class="tag">With</span>Here is a sentence with the last word removed.</div>
+      <div class="without"><span class="tag">Without</span>In this chapter, we introduce the foundational concepts of statistical language modeling.</div>
+    </div>
+  </div>
+
+  <div class="diffrow">
+    <h3>2 · Entropy arrives as a measured quantity, not a formula</h3>
+    <p>Draft B defines entropy in §1.2 and never uses the definition again — a decorative equation, and for a math-anxious reader a decorative equation is a signal that the section is not for them. Draft A never writes the summation. It reports the number of guesses, converts to bits, and contrasts 1 against 4.75. The one equation Draft A does display, the autoregressive product, is load-bearing for the remaining thirteen chapters.</p>
+  </div>
+
+  <div class="diffrow">
+    <h3>3 · The bottleneck is felt before it is named</h3>
+    <p>Both drafts state that sparsity limits n-grams. Draft B asserts it as a property. Draft A shows the six-gram output first, lets the reader notice it is a quotation, and only then counts the cells in the table. The reader arrives at the wall before being told there is one.</p>
+    <div class="quotepair">
+      <div class="with"><span class="tag">With</span>Read that last one again, though. It is not better. It is a sentence from the manual, reproduced.</div>
+      <div class="without"><span class="tag">Without</span>Empirically, model quality improves with increasing <em>n</em> up to a point, beyond which the model begins to reproduce training sequences verbatim as a consequence of data sparsity.</div>
+    </div>
+  </div>
+
+  <div class="diffrow">
+    <h3>4 · Two humans, with motives</h3>
+    <p>Draft B contains "Markov (1913)". Draft A contains a man counting vowels in Pushkin to win an argument about the law of large numbers, who had no interest in language and left the tool behind anyway. Same citation, and only one of them is a story a student retells.</p>
+  </div>
+
+  <div class="diffrow">
+    <h3>5 · The central limitation is made concrete</h3>
+    <p>This is the largest gap in the chapter. Draft B says vocabulary items are "treated as mutually orthogonal" — correct, and it explains nothing to a reader who does not already know what it means. Draft A spends a paragraph on one bolt and one screw.</p>
+    <div class="quotepair">
+      <div class="with"><span class="tag">With</span>To a counting model, <em>bolt</em> and <em>screw</em> and <em>Wednesday</em> are three unrelated symbols that happen to be spelled differently.</div>
+      <div class="without"><span class="tag">Without</span>Consequently, statistical evidence acquired with respect to one token cannot inform estimates involving a semantically related token.</div>
+    </div>
+  </div>
+
+  <div class="diffrow">
+    <h3>6 · The simplification is bounded out loud</h3>
+    <p>Draft A's core claim — that predicting well requires representing structure — is an argument, not a proof, and the <span class="sans"><strong>Where this breaks</strong></span> box says so and forward-references the chapter where it fails. Draft B avoids the problem by never making the claim, which is safer and teaches less. The <span class="sans"><strong>Real constraint or inherited?</strong></span> box does the other half of the work: it tells the reader which parts of the chapter are permanent and which are about to be thrown away.</p>
+  </div>
+
+  <div class="diffrow">
+    <h3>7 · It closes on a door instead of a filing cabinet</h3>
+    <p>Draft B ends with a five-item summary and "In the next chapter, we will". Draft A ends by naming what has to be true for the wall to come down, then plants the observation that the fix was invented in 1986 and unaffordable until 2013 — which is the thesis of the whole book, arriving in the last sentence of chapter one.</p>
+  </div>
+
+  <h2><span class="sec">·</span>The cost, stated honestly</h2>
+
+  <p>Draft A is roughly twice as long for identical content. That is the real trade and it is not free: at that ratio a fourteen-chapter book gets long, and a reader who already knows the material will find Draft A slow and Draft B efficient.</p>
+
+  <p>The bet is that the second reader is not the one you are writing for. But it does imply a structural decision — Draft A's density is right for the chapters carrying new mechanism, and something closer to Draft B is right for reference material, appendices, and the notation summaries. Worth choosing deliberately rather than drifting.</p>
+
+  <div class="endnote">
+    <p>Both drafts cover the same six ideas from the same six sources: Shannon's guessing experiment, the entropy rate of English, prediction as compression, the autoregressive factorization, n-gram estimation by counting, and the two limitations that motivate Chapter 2.</p>
+  </div>
+</section>
+
+</main>
+
+<p class="hint">Click a tab, or use <kbd>←</kbd> <kbd>→</kbd> when a tab is focused.</p>
+
+<script>
+  const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+  const panels = tabs.map(t => document.getElementById(t.getAttribute('aria-controls')));
+
+  function select(i, focus) {
+    tabs.forEach((t, j) => {
+      const on = i === j;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      panels[j].hidden = !on;
+    });
+    if (focus) tabs[i].focus();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => select(i, false));
+    t.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight') { e.preventDefault(); select((i + 1) % tabs.length, true); }
+      if (e.key === 'ArrowLeft')  { e.preventDefault(); select((i - 1 + tabs.length) % tabs.length, true); }
+    });
+  });
+  select(0, false);
+
+  // word counts, computed rather than asserted
+  function countWords(panel) {
+    const clone = panel.cloneNode(true);
+    clone.querySelectorAll('.meta, .endnote').forEach(n => n.remove());
+    return (clone.textContent.trim().match(/[\w’'-]+/g) || []).length;
+  }
+  const counts = {};
+  ['with', 'without'].forEach(k => {
+    const panel = document.getElementById('panel-' + k);
+    counts[k] = countWords(panel);
+    panel.querySelector('[data-wordcount]').textContent = counts[k].toLocaleString() + ' words';
+  });
+  document.querySelector('[data-wordcount-compare]').textContent =
+    counts.with.toLocaleString() + ' vs ' + counts.without.toLocaleString() + ' words · ' +
+    (counts.with / counts.without).toFixed(1) + '× longer';
+</script>
+
+</body>
+</html>
