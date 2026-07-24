@@ -8,25 +8,25 @@
 
   /* ── notation reader ──────────────────────────────────────────────── */
   T.eqs({
-    joint: { t: 'P(w₁ … w_T)', b: '<p>The probability of one specific passage of <span class="m">T</span> tokens — the whole thing, in order. <span class="m">w</span> stands for a token and the subscript is its position, so <span class="m">w₃</span> is “the third token”.</p><p>Concretely, for <em>the boats went out</em>, <span class="m">T = 4</span> and this is one number: how much of its belief the model spends on exactly that sequence out of all possible 4-token sequences.</p>' },
-    prod: { t: 'the product sign ∏', b: '<p>Multiply together everything to the right of it, once for each value of <span class="m">t</span> from 1 up to <span class="m">T</span>. The sum sign <span class="m">∑</span> does the same with addition.</p><p>It is loop notation. If <span class="m">T = 3</span>, the product expands to three factors multiplied together — one per position in the passage.</p>' },
-    cond: { t: 'P(wₜ ∣ w₁:ₜ₋₁)', b: '<p>The vertical bar means “given”. This is the probability of the token at position <span class="m">t</span>, given all tokens before it — that is what <span class="m">w₁:ₜ₋₁</span> abbreviates, positions 1 through <span class="m">t−1</span>.</p><p>This single expression is the model’s entire output. Everything else in the equation is bookkeeping around it.</p>' },
-    phat: { t: 'the hat on P̂', b: '<p>A hat marks an <em>estimate computed from a sample</em> rather than a true underlying probability. The distinction matters here: the counts come from one finite corpus, so the estimate carries that corpus’s accidents.</p><p>Where the hat is absent, we are talking about the idealised quantity we wish we had.</p>' },
-    numer: { t: 'count(c, w)', b: '<p>How many times, in the whole corpus, context <span class="m">c</span> was immediately followed by token <span class="m">w</span>. An integer you could obtain by hand with enough patience.</p>' },
-    denom: { t: 'count(c)', b: '<p>How many times context <span class="m">c</span> occurred at all, regardless of what came next. Dividing by it is what turns raw counts into a distribution that sums to one — and when it is zero, the whole expression is undefined. That undefined case is §1.5.</p>' },
-    loss: { t: 'L — the loss', b: '<p>One number summarising a model’s performance on a text: average bits of surprise per token. Lower is better. Zero would mean the model predicted every token with certainty and was right every time.</p><p>Typical values are worth memorising as landmarks: a well-trained modern model sits at a small number of bits per token, a poor model at many.</p>' },
-    sum: { t: 'the sum over positions', b: '<p>Add up the term that follows, once per token position in the text. Combined with the <span class="m">1/T</span> in front, this is just “take the average”.</p>' },
-    log: { t: 'log₂', b: '<p>The base-2 logarithm: the power of 2 that gives you the input. <span class="m">log₂(1/8) = −3</span>, because <span class="m">2⁻³ = 1/8</span>.</p><p>Logarithms of probabilities are always negative (probabilities are below 1), which is why the equation has a minus sign in front — it makes the loss positive. Base 2 gives units of bits; natural log gives nats. The choice changes the units, not the ranking.</p>' },
-    ptrue: { t: 'P(the token that actually occurred)', b: '<p>The crucial detail of the whole objective: we do not ask what the model’s favourite token was. We ask what probability it gave to the token that <em>actually appeared</em>.</p><p>A model can have the right favourite and still score badly, by hedging; it can have the wrong favourite and score well, by keeping the truth plausible.</p>' },
-    ppl: { t: 'PPL — perplexity', b: '<p>Two raised to the loss. It converts bits back into an equivalent number of equally likely options, which many people find easier to reason about than bits.</p><p>Perplexity 1 = perfect. Perplexity equal to vocabulary size = the model has learned nothing at all beyond the vocabulary.</p>' },
-    phatk: { t: 'P̂ₖ — the smoothed estimate', b: '<p>The same count-and-divide estimate, but with a constant <span class="m">k</span> added to every count first. The subscript names the amount of insurance bought.</p>' },
-    k: { t: '+ k in the numerator', b: '<p>Pretend you saw this continuation <span class="m">k</span> extra times. With <span class="m">k = 0.1</span>, a token that never occurred is treated as having occurred a tenth of a time — small, but crucially not zero.</p>' },
-    kv: { t: '+ kV in the denominator', b: '<p><span class="m">V</span> is the vocabulary size. Since we added <span class="m">k</span> to each of <span class="m">V</span> possible continuations, the total must grow by <span class="m">kV</span> for the numbers to still sum to one.</p><p>This is why large <span class="m">k</span> with a large vocabulary is destructive: the insurance premium is paid out of the probability of the things you actually observed.</p>' }
+    joint: { t: 'P(w₁ … w_T)', b: '<p>The probability of one specific passage of <span class="m">T</span> words — the whole thing, in that order. <span class="m">w</span> means “a word” and the little number is its position, so <span class="m">w₃</span> is the third one.</p><p>For <em>the boats went out</em>, <span class="m">T = 4</span>, and this is a single number: how much of its belief the model spent on exactly that sequence out of every 4-word sequence it could have expected.</p>' },
+    prod: { t: 'that ∏ sign', b: '<p>It means “multiply all of these together”, once for each value of <span class="m">t</span> from 1 up to <span class="m">T</span>. Its cousin <span class="m">∑</span> does the same thing with addition.</p><p>It’s loop notation. If <span class="m">T = 3</span> it just means three things multiplied together, one per word.</p>' },
+    cond: { t: 'P(wₜ ∣ w₁:ₜ₋₁)', b: '<p>The vertical bar means “given”. So: the odds of the word at position <span class="m">t</span>, given everything before it. That’s what <span class="m">w₁:ₜ₋₁</span> is shorthand for — positions 1 through <span class="m">t−1</span>.</p><p>This one expression is the model’s entire output. Everything else in the equation is just bookkeeping around it.</p>' },
+    phat: { t: 'the hat on P̂', b: '<p>A hat means “estimated from a sample” rather than “the actual truth”. It matters here, because the counts come from one finite pile of text, so the estimate carries that pile’s accidents.</p><p>No hat means the idealised number we wish we had.</p>' },
+    numer: { t: 'count(c, w)', b: '<p>How many times, in the whole corpus, context <span class="m">c</span> was followed immediately by word <span class="m">w</span>. A plain integer you could get by hand with enough coffee.</p>' },
+    denom: { t: 'count(c)', b: '<p>How many times context <span class="m">c</span> showed up at all, no matter what came next. Dividing by it is what turns raw tallies into odds that add up to 1.</p><p>And when it’s zero, the whole thing is undefined. That case is §1.5, and it eats the model.</p>' },
+    loss: { t: 'L — the loss', b: '<p>One number for how well a model did on a text: average bits of surprise per word. Lower is better. Zero would mean it called every word correctly with total confidence.</p><p>Worth keeping landmarks in your head: a good modern model sits at a small handful of bits per token, a bad one at many.</p>' },
+    sum: { t: 'the sum over positions', b: '<p>Add up the thing on the right, once per word. Together with the <span class="m">1/T</span> out front, this is just “take the average”.</p>' },
+    log: { t: 'log₂', b: '<p>The base-2 logarithm: the power you’d raise 2 to in order to get your number. <span class="m">log₂(1/8) = −3</span>, because <span class="m">2⁻³ = 1/8</span>.</p><p>Probabilities are below 1, so their logs are always negative — which is why there’s a minus sign out front, to make the loss a positive number. Base 2 gives you bits. Natural log gives you “nats”. It changes the units, not the ranking.</p>' },
+    ptrue: { t: 'P(the word that actually showed up)', b: '<p>This is the important bit of the whole objective. We don’t ask what the model’s favourite word was. We ask what it bet on the word that <em>actually happened</em>.</p><p>So a model can have the right favourite and still score badly by hedging, and it can have the wrong favourite and score fine by keeping the truth plausible.</p>' },
+    ppl: { t: 'PPL — perplexity', b: '<p>2 raised to the loss. It turns bits into “how many equally likely options was it choosing between”, which most people find easier to feel.</p><p>Perplexity 1 = psychic. Perplexity equal to the vocabulary size = learned nothing beyond the word list.</p>' },
+    phatk: { t: 'P̂ₖ — the smoothed estimate', b: '<p>Same count-and-divide, but with a constant <span class="m">k</span> added to every tally first. The subscript just says how much insurance you bought.</p>' },
+    k: { t: '+ k on top', b: '<p>Pretend you saw this continuation <span class="m">k</span> extra times. At <span class="m">k = 0.1</span>, a word you never saw is treated as having shown up a tenth of a time. Small — but crucially not zero.</p>' },
+    kv: { t: '+ kV on the bottom', b: '<p><span class="m">V</span> is the vocabulary size. You added <span class="m">k</span> to each of <span class="m">V</span> possible next words, so the total has to grow by <span class="m">kV</span> or the odds stop adding to 1.</p><p>Which is why a big <span class="m">k</span> with a big vocabulary is destructive: the insurance premium comes straight out of the words you actually observed.</p>' }
   });
 
   T.terms({
-    'n-gram': { t: 'n-gram model', b: '<p>A model that predicts the next token from only the previous <span class="m">n−1</span> tokens, with probabilities estimated by counting. A trigram model (<span class="m">n = 3</span>) looks back exactly two tokens.</p><p>Historically central, now instructive rather than competitive: it is the clearest example of a model whose failure is caused by its representation rather than its size.</p>' },
-    entropy: { t: 'entropy', b: '<p>The average surprise <em>of a distribution itself</em>, in bits: how uncertain the prediction is before we learn the answer. A distribution concentrated on one token has entropy 0; a uniform distribution over 16 tokens has entropy 4.</p><p>Cross-entropy (the loss) measures a model against reality. Entropy measures the model’s own indecision.</p>' }
+    'n-gram': { t: 'n-gram model', b: '<p>A model that guesses the next word from only the previous <span class="m">n−1</span> words, with the odds worked out by counting. A trigram model (<span class="m">n = 3</span>) looks back exactly two words.</p><p>Historically huge, now mostly instructive: it’s the cleanest example of a model whose failure comes from its <em>representation</em> rather than its size.</p>' },
+    entropy: { t: 'entropy', b: '<p>How unsure a set of odds is, in bits — before you find out the answer. All the belief on one word: entropy 0. Spread evenly over 16 words: entropy 4.</p><p>Cross-entropy (the loss) measures a model against reality. Entropy measures the model’s own indecision. Related, not the same.</p>' }
   });
 
   const fmtP = p => (p >= 0.0995 ? p.toFixed(2) : p >= 0.001 ? p.toFixed(3) : p.toExponential(1));
@@ -103,7 +103,7 @@
           class: 'fig-cap', style: 'margin-top:.45rem',
           html: item.open
             ? '<b>' + d.allRows.length + ' different continuations</b>, none dominant: ' + T.fmt(H, 2) + ' bits of genuine indecision. A model that names one word here is misrepresenting the corpus.'
-            : 'One continuation, ' + (d.found ? d.total : 0) + ' occurrence' + ((d.found ? d.total : 0) === 1 ? '' : 's') + ', <b>' + T.fmt(H, 2) + ' bits</b> of indecision. The context has done nearly all the work — but note how thin the evidence for that certainty is.'
+            : 'One continuation, ' + (d.found ? d.total : 0) + ' occurrence' + ((d.found ? d.total : 0) === 1 ? '' : 's') + ', <b>' + T.fmt(H, 2) + ' bits</b> of indecision. The context did nearly all the work here. Now look at how thin the evidence for that confidence actually is.'
         }));
       }
 
@@ -182,7 +182,7 @@
       tb.appendChild(body);
       out.appendChild(el('div', { class: 'scroller' }, tb));
       if (!step) {
-        out.appendChild(el('div', { class: 'readout', style: 'margin-top:.5rem', html: 'Press <b>Step</b> to score <span class="m">' + SENT.join(' ') + '</span> one token at a time, under a trigram model with light smoothing.' }));
+        out.appendChild(el('div', { class: 'readout', style: 'margin-top:.5rem', html: 'Hit <b>Step</b> to score <span class="m">' + SENT.join(' ') + '</span> one word at a time, using a trigram model with a little smoothing.' }));
       } else {
         out.appendChild(statRow([
           { k: 'tokens scored', v: step + '<small>/' + SENT.length + '</small>' },
@@ -193,8 +193,8 @@
         if (step === SENT.length) {
           out.appendChild(el('p', {
             class: 'fig-cap', style: 'margin-top:.5rem',
-            html: 'The joint probability is <b>' + prod.toExponential(1) + '</b> — a number whose only readable feature is that it is small. The same information as <b>' +
-              T.fmt(bits / step, 2) + ' bits per token</b> is immediately comparable to any other passage, of any length. Highlighted rows are positions where the trigram model had never seen this context and fell back on insurance.'
+            html: 'Joint probability: <b>' + prod.toExponential(1) + '</b>. The only thing you can read off that number is “small”. The exact same information as <b>' +
+              T.fmt(bits / step, 2) + ' bits per word</b> can be compared to any other passage of any length. Highlighted rows are places where the model had never seen this context before and fell back on insurance.'
           }));
         }
       }
@@ -242,8 +242,8 @@
       out.innerHTML = '';
       out.appendChild(el('div', {
         class: 'readout',
-        html: 'context actually used at <b>n=' + n + '</b>: ' + (used.length ? '<b>' + used.join(' ') + '</b>' : '<i>none — a unigram model ignores context entirely</i>') +
-          (n > 1 && used.length < n - 1 ? ' <span style="color:var(--vermilion)">(shorter than n−1; type a longer context)</span>' : '')
+        html: 'what the model actually looks at, at <b>n=' + n + '</b>: ' + (used.length ? '<b>' + used.join(' ') + '</b>' : '<i>none — a unigram model ignores context entirely</i>') +
+          (n > 1 && used.length < n - 1 ? ' <span style="color:var(--vermilion)">(shorter than n−1 — pick a longer context)</span>' : '')
       }));
       out.appendChild(statRow([
         { k: 'context seen', v: d.found ? String(d.total) : '0', tone: d.found ? '' : 'warn' },
@@ -252,7 +252,7 @@
         { k: 'contexts seen only once', v: T.pct(once / tot, 0), tone: once / tot > 0.7 ? 'warn' : '' }
       ]));
       if (!d.found) {
-        out.appendChild(el('div', { class: 'readout', style: 'margin-top:.5rem;color:var(--vermilion)', html: 'This context never occurs in the corpus. The counting model has <b>no distribution to report</b> — not a bad one, none at all. Equation 1.2 divides by zero here.' }));
+        out.appendChild(el('div', { class: 'readout', style: 'margin-top:.5rem;color:var(--vermilion)', html: 'This context never happens in the corpus. So the counting model has <b>nothing to report</b> — not a bad guess, no guess. Equation 1.2 is dividing by zero right now.' }));
       } else {
         out.appendChild(el('div', { style: 'height:.5rem' }));
         out.appendChild(barTable(d.allRows.slice(0, 8), d.allRows[0].p));
@@ -313,7 +313,7 @@
         { k: 'verbatim from corpus', v: T.pct(copyRate, 0), tone: copyRate > 0.6 ? 'warn' : copyRate < 0.15 ? 'good' : '' },
         { k: 'reads as', v: n <= 2 ? 'local noise' : n === 3 ? 'drifting' : n === 4 ? 'mostly recited' : 'recitation' }
       ]));
-      out.appendChild(el('p', { class: 'hint-scroll', style: 'margin-top:.4rem', html: 'Highlighted = a span of ' + W + '+ tokens that appears word-for-word in the corpus.' }));
+      out.appendChild(el('p', { class: 'hint-scroll', style: 'margin-top:.4rem', html: 'Highlighted = ' + W + ' or more words in a row that appear word-for-word in the corpus.' }));
     }
     render();
   });
@@ -370,8 +370,8 @@
       out.appendChild(el('p', {
         class: 'hint-scroll', style: 'margin-top:.4rem',
         html: zeros
-          ? '<b style="color:var(--vermilion)">' + zeros + ' token' + (zeros === 1 ? '' : 's') + ' assigned probability exactly zero</b> (vermilion). Each one is the model asserting that something which then happened was impossible. One such token is enough to make the average infinite, so the score cannot distinguish a nearly-good model from a hopeless one.'
-          : 'No token was called impossible. The loss is now finite — and honestly mediocre. Ochre marks tokens that cost more than about 8 bits.'
+          ? '<b style="color:var(--vermilion)">' + zeros + ' word' + (zeros === 1 ? '' : 's') + ' got probability exactly zero</b> (vermilion). Each one is the model claiming that something which then happened was impossible. One is enough to make the average infinite — so the score can’t tell a nearly-good model from a hopeless one.'
+          : 'Nothing was called impossible any more. The loss is finite, and honestly pretty bad. Ochre marks words that cost more than about 8 bits.'
       }));
     }
     render();
@@ -413,7 +413,7 @@
     ]));
     root.appendChild(el('p', {
       class: 'hint-scroll', style: 'margin-top:.4rem',
-      html: 'Held-out passage: ' + C.testTokens().length + ' tokens the counting model has never seen. A production corpus is many orders of magnitude larger, which moves these bars down — read Exhibit 1.7 for how far down, and why not to zero.'
+      html: 'Scored on ' + C.testTokens().length + ' words the model has never seen. A real corpus is many orders of magnitude bigger, which pushes these bars down — Exhibit 1.7 is about how far down, and why not to zero.'
     }));
   });
 
@@ -464,7 +464,7 @@
           { k: 'text covered by top 10', v: T.pct(top10 / Tk.length, 0) },
           { k: 'most common', v: '<span class="m">' + z[0].tok + '</span> <small>×' + z[0].c + '</small>' }
         ],
-        note: 'Both axes are logarithmic, so a straight line means each halving of rank roughly doubles frequency. The consequence for a counting model: most of the vocabulary is evidence-starved by construction, and the tokens you have plenty of evidence about are mostly function words that carry little content.'
+        note: 'Both axes are logarithmic, so a straight line means every halving of rank roughly doubles the frequency. What that does to a counting model: most of the vocabulary is starved of evidence by construction, and the words it has plenty of evidence about are mostly “the” and “of”.'
       };
     }
 
@@ -505,7 +505,7 @@
           { k: 'new tokens in the final 5%', v: String(last.types - prev.types), tone: 'warn' },
           { k: 'growth still positive?', v: 'yes', tone: 'warn' }
         ],
-        note: 'The curve bends — each new token of text brings fewer new words than the last — but it does not reach a ceiling, and the final slice of corpus still introduces words never seen before. Empirically this sublinear-but-endless growth holds across corpora of every size (it is known as Heaps’ law). Since every new token creates new contexts, the supply of contexts a counting model has never seen is never exhausted.'
+        note: 'The curve bends — each new chunk of text brings fewer new words than the last — but it never flattens out, and the final slice still introduces words that had never appeared. This slowing-but-endless growth shows up in corpora of every size; it’s known as Heaps’ law. And since every new word creates new contexts, a counting model never runs out of contexts it has never seen.'
       };
     }
 

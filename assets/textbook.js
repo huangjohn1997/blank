@@ -331,59 +331,59 @@
   T.terms({
     'language-model': {
       t: 'language model',
-      b: '<p>A system that assigns a probability to what comes next in a sequence of text. Given some context, it produces a number for <em>every</em> item in its vocabulary, and those numbers sum to 1.</p><p>Note what this definition does <b>not</b> claim: nothing about meaning, intent, or understanding. Everything else in this book is built on top of this one operation.</p>'
+      b: '<p>Something that hands out odds on what comes next in a stretch of text. Give it some context and it produces a number for <em>every</em> item in its vocabulary, and those numbers add up to 1.</p><p>Notice what this definition does <b>not</b> mention: meaning, intent, understanding. Everything else in this book is built on top of that one operation.</p>'
     },
     token: {
       t: 'token',
-      b: '<p>The unit of text a model actually reads and predicts. Not a word and not a character, but a chunk chosen by a <span class="m">tokenizer</span> — often a whole common word, sometimes a word fragment, sometimes a single byte.</p><p>Chapter 2 builds one. Until then, read “token” as “the model’s atom of text”.</p>'
+      b: '<p>The chunk of text a model actually reads and predicts. Not a word, not a letter, but a piece decided by a <span class="m">tokenizer</span> — often a whole common word, sometimes a word fragment, sometimes a single byte.</p><p>Chapter 2 builds one from scratch. Until then, read “token” as “the model’s atom of text”.</p>'
     },
     vocabulary: {
       t: 'vocabulary',
-      b: '<p>The fixed, finite list of tokens a model can read or emit, decided before training and frozen for the model’s lifetime. Its size is written <span class="m">V</span>.</p><p>Every prediction the model makes is a probability distribution over exactly these <span class="m">V</span> items.</p>'
+      b: '<p>The fixed, finite list of tokens a model can read or produce. Decided before training and frozen for life. Its size gets written <span class="m">V</span>.</p><p>Every guess the model ever makes is a spread of odds over exactly these <span class="m">V</span> things.</p>'
     },
     corpus: {
       t: 'corpus',
-      b: '<p>The body of text a model learns from. Plural: corpora.</p><p>The corpus is not neutral background: what it contains, over-contains, and omits shows up later as model behaviour. Chapter 13 treats corpus construction as model design.</p>'
+      b: '<p>The pile of text a model learns from. Plural: corpora.</p><p>It is not neutral background. What it contains, over-contains, and leaves out shows up later as model behaviour. Chapter 13 treats building one as a design job, not a data-collection job.</p>'
     },
     distribution: {
       t: 'probability distribution',
-      b: '<p>An assignment of non-negative numbers to a set of outcomes that sums to 1. Here the outcomes are the <span class="m">V</span> tokens in the vocabulary.</p><p>“The model outputs a distribution” means: it gives every token a share of one unit of belief, and spending more on one token necessarily means spending less on the rest.</p>'
+      b: '<p>A set of non-negative numbers over some options that add up to 1. Here the options are the <span class="m">V</span> tokens in the vocabulary.</p><p>“The model outputs a distribution” means: it splits one unit of belief across every token, so spending more on one necessarily means spending less on the others.</p>'
     },
     'cross-entropy': {
       t: 'cross-entropy loss',
-      b: '<p>The average surprise, in <span class="m">log</span> units, that a model assigns to text it did not write. For one prediction it is <span class="m">−log p(actual next token)</span>; over a text, the average of that quantity.</p><p>Read in base 2 it is in bits: “how many yes/no questions of uncertainty remained”. Zero means certainty and correctness; infinity means the model called the truth impossible.</p>'
+      b: '<p>The average surprise a model shows at text it didn’t write. For a single guess it’s <span class="m">−log p(the word that actually came next)</span>. Over a text, the average of that.</p><p>In base 2 the units are bits: “how many coin flips of uncertainty were left”. Zero means certain and right. Infinity means the model called the truth impossible.</p>'
     },
     perplexity: {
       t: 'perplexity',
-      b: '<p><span class="m">2</span> raised to the cross-entropy in bits. It converts average surprise into an <em>effective branching factor</em>: a perplexity of 12 means the model was, on average, as uncertain as someone choosing uniformly among 12 options.</p><p>Comparable only between models that share a tokenizer and a test text — different tokenizers change the denominator. See Chapter 2.</p>'
+      b: '<p><span class="m">2</span> to the power of the cross-entropy in bits. It turns average surprise into an <em>effective number of choices</em>: perplexity 12 means the model was about as unsure as someone picking blindly from 12 options.</p><p>Only comparable between models that share a tokenizer and a test text. Different tokenizers change the denominator — see Chapter 2.</p>'
     },
     'held-out': {
       t: 'held-out data',
-      b: '<p>Text deliberately kept out of training and used only for measurement. Performance on the training text tells you what a system memorised; performance on held-out text is the first honest evidence of generalisation.</p><p>When held-out text leaks into training, every measurement built on it becomes uninterpretable. That failure has a name — contamination — and Chapter 12 takes it seriously.</p>'
+      b: '<p>Text deliberately kept out of training and used only for measuring. Performance on training text tells you what got memorised. Performance on held-out text is the first honest sign of anything more.</p><p>When held-out text leaks into training, every measurement built on it becomes meaningless. That failure has a name — contamination — and Chapter 12 takes it very seriously.</p>'
     },
     embedding: {
       t: 'embedding',
-      b: '<p>A vector of numbers standing in for a discrete item, learned rather than hand-designed. A token embedding is a row of a lookup table with one row per vocabulary entry.</p><p>The vector is not a description of the token; it is whatever arrangement of numbers made the model’s prediction loss go down.</p>'
+      b: '<p>A list of numbers standing in for something discrete, learned rather than designed. A token embedding is one row of a lookup table that has one row per vocabulary entry.</p><p>The row isn’t a description of the token. It’s whatever arrangement of numbers made the model’s guesses better.</p>'
     },
     parameter: {
       t: 'parameter',
-      b: '<p>A single number inside a model that training is free to change. Weights in matrices, biases, and every entry of the embedding table are parameters.</p><p>“A 7-billion-parameter model” counts these numbers. It says nothing directly about capability, and much about memory and cost.</p>'
+      b: '<p>A single number inside a model that training is allowed to change. Every weight in every matrix, and every entry of the embedding table, is one.</p><p>“A 7-billion-parameter model” is a count of these numbers. It tells you a lot about memory and cost, and surprisingly little about capability.</p>'
     },
     'gradient-descent': {
       t: 'gradient descent',
-      b: '<p>The training loop: measure the loss, compute for each parameter the direction that would increase it, and take a small step the other way.</p><p>The size of that step is the learning rate. Chapter 8 builds the mechanism; here you only need the shape — <em>loss goes down by nudging numbers</em>.</p>'
+      b: '<p>The training loop. Measure how wrong you were, work out for each parameter which way would have made it worse, and take a small step the other way.</p><p>How big a step is the learning rate. Chapter 8 builds the machinery. Here you only need the shape: <em>the score improves by nudging numbers</em>.</p>'
     },
     logit: {
       t: 'logit',
-      b: '<p>One raw, unnormalised score the model produces for one vocabulary item, before any conversion into probability. Logits may be any real number, positive or negative.</p><p><span class="m">softmax</span> turns a vector of logits into a probability distribution: exponentiate each, then divide by the total.</p>'
+      b: '<p>One raw score the model produces for one vocabulary item, before any of it gets turned into probability. Logits can be any real number, positive or negative.</p><p><span class="m">softmax</span> is what converts a pile of logits into odds.</p>'
     },
     softmax: {
       t: 'softmax',
-      b: '<p>The standard way to turn <span class="m">V</span> arbitrary scores into a distribution over <span class="m">V</span> options: exponentiate every score, then divide each by the sum of all of them.</p><p>Two consequences worth carrying: it never assigns exactly zero, and because exponentials grow fast, small differences in scores become large differences in probability.</p>'
+      b: '<p>The standard way to turn <span class="m">V</span> arbitrary scores into odds that add to 1: raise <span class="m">e</span> to the power of each score, then divide each by the total.</p><p>Two consequences worth keeping: it never outputs exactly zero, and because exponentials grow fast, small gaps in scores become big gaps in probability.</p>'
     },
     'dot-product': {
       t: 'dot product',
-      b: '<p>Multiply two vectors component by component and add the results: a single number measuring how much they point the same way, scaled by their lengths.</p><p>It is the workhorse of this entire field. Prediction scores, attention weights, and similarity searches are all dot products underneath.</p>'
+      b: '<p>Multiply two lists of numbers position by position, then add up the results. One number, telling you how much the two point the same way, scaled by how long they are.</p><p>It’s the workhorse of this whole field. Prediction scores, attention weights, similarity search — all dot products underneath.</p>'
     }
   });
 })();
