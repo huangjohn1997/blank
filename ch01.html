@@ -46,7 +46,7 @@
     <li data-target="#predict"><span class="mv mv-need">The problem</span><a class="txt" data-target="#predict" href="#predict">Filling in a blank means ranking every option, not naming one</a></li>
     <li data-target="#counting"><span class="mv mv-mech">The fix</span><a class="txt" data-target="#counting" href="#counting">Count how often each word followed this context. Divide. Done?</a></li>
     <li data-target="#generate"><span class="mv mv-cons">So what</span><a class="txt" data-target="#generate" href="#generate">Anything that can rank can also write — and ours writes badly, in two ways</a></li>
-    <li data-target="#measure"><span class="mv mv-cons">So what</span><a class="txt" data-target="#measure" href="#measure">We can put a number on “badly”: surprise, per word</a></li>
+    <li data-target="#measure"><span class="mv mv-cons">So what</span><a class="txt" data-target="#measure" href="#measure">We can put a number on “badly”: surprise, per token</a></li>
     <li data-target="#sparsity"><span class="mv mv-limit">Where it breaks</span><a class="txt" data-target="#sparsity" href="#sparsity">Counting can’t be fixed, and more data won’t save it</a></li>
     <li data-target="#understanding"><span class="mv mv-evid">How sure are we</span><a class="txt" data-target="#understanding" href="#understanding">What you’re allowed to claim about a thing that guesses well</a></li>
   </ol>
@@ -156,7 +156,9 @@
 
 <p>So we cheat. Let the context be just the last couple of words. Look back one word and you’ve got a <em>bigram</em> model. Look back two, a <em>trigram</em>. Generally, look back <span class="m">n−1</span> words and you’ve got an <button class="term" data-t="n-gram">n-gram model</button>.</p>
 
-<p>This cheat is a claim about language: that words far away stop mattering. Which is obviously false. We do it anyway, because it makes counting possible. Get comfortable with that move now, while it’s cheap — a wrong-but-useful assumption doing real work until it breaks is the standard rhythm of this entire field.</p>
+<p>A note on vocabulary before we go further. I’ve been saying <em>word</em>, and for this chapter’s counting model that’s literally accurate — it counts words. Everywhere else in this book the unit is a <button class="term" data-t="token">token</button>, which is not a word, and the difference turns out to set your bill and your context limit. That’s Chapter 2’s whole job. Until then, read the two as roughly the same and enjoy it while it lasts.</p>
+
+<p>Back to the cheat. It’s a claim about language: that words far away stop mattering. Which is obviously false. We do it anyway, because it makes counting possible. Get comfortable with that move now, while it’s cheap — a wrong-but-useful assumption doing real work until it breaks is the standard rhythm of this entire field.</p>
 
 <div class="fig exp" id="fig-1-3">
   <div class="fig-hd"><b>Exhibit 1.3</b> · interactive · counting the corpus live</div>
@@ -206,7 +208,7 @@
 <!-- ══════════════════════════════════════════════════════════════════ -->
 <section id="measure" data-move="cons">
 <div class="move cons"><span class="n">§1.4</span> So what</div>
-<h2>Surprise, per word</h2>
+<h2>Surprise, per token</h2>
 
 <p>“It reads badly” isn’t a measurement. If the job is guessing, the obvious test is: show the model text it’s never seen, and ask how much money it put on what actually happened.</p>
 
@@ -215,7 +217,7 @@
 <p>In base 2, the number you get is <em>bits of surprise</em>. It answers: how many yes/no questions’ worth of uncertainty did the model still have here? Zero bits means it knew. One bit means it was down to a coin flip. Ten bits means it was as lost as someone guessing between a thousand options.</p>
 
 <div class="eqn">
-  <div class="eqn-t">Equation 1.3 · Average surprise per word — the score that trains everything</div>
+  <div class="eqn-t">Equation 1.3 · Average surprise per token — the score that trains everything</div>
   <div class="eqn-m">
     <math display="block">
       <mrow data-ex="loss"><mi>L</mi></mrow><mo>=</mo>
@@ -225,10 +227,10 @@
       <mrow data-ex="ptrue"><mi>P</mi><mo>(</mo><msub><mi>w</mi><mi>t</mi></msub><mo>∣</mo><msub><mi>w</mi><mrow><mn>1</mn><mo>:</mo><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>)</mo></mrow>
     </math>
   </div>
-  <div class="eqn-r"><b>In words:</b> at every position, take the bet the model placed on the word that actually appeared, turn it into bits of surprise, and average. That’s <button class="term" data-t="cross-entropy">cross-entropy loss</button> — the same number that will train every model in this book. Here we’re just using it to grade one.</div>
+  <div class="eqn-r"><b>In words:</b> at every position, take the bet the model placed on the token that actually appeared, turn it into bits of surprise, and average. That’s <button class="term" data-t="cross-entropy">cross-entropy loss</button> — the same number that will train every model in this book. Here we’re just using it to grade one.</div>
 </div>
 
-<p>Averaging per word is what makes the number comparable across texts of different lengths, which the raw product wasn’t. And if bits don’t feel intuitive, exponentiate:</p>
+<p>Averaging per token is what makes the number comparable across texts of different lengths, which the raw product wasn’t. And if bits don’t feel intuitive, exponentiate:</p>
 
 <div class="eqn">
   <div class="eqn-t">Equation 1.4 · Perplexity — surprise, restated as “how many options”</div>
@@ -240,7 +242,7 @@
       </mrow></msup>
     </math>
   </div>
-  <div class="eqn-r"><b>In words:</b> <button class="term" data-t="perplexity">perplexity</button> turns bits back into a count of options. Loss of 4 bits means perplexity 16: on average the model was about as unsure as someone picking blindly from 16 words. Lower is better, 1 would be psychic.</div>
+  <div class="eqn-r"><b>In words:</b> <button class="term" data-t="perplexity">perplexity</button> turns bits back into a count of options. Loss of 4 bits means perplexity 16: on average the model was about as unsure as someone picking blindly from 16 options. Lower is better, 1 would be psychic.</div>
 </div>
 
 <div class="fig exp" id="fig-1-5">
@@ -393,7 +395,7 @@
   <a data-target="#predict" href="#predict"><span class="an-mv">The problem</span>You already do this</a>
   <a data-target="#counting" href="#counting"><span class="an-mv">The fix</span>Count, then divide</a>
   <a data-target="#generate" href="#generate"><span class="an-mv">So what</span>Guessers can write</a>
-  <a data-target="#measure" href="#measure"><span class="an-mv">So what</span>Surprise, per word</a>
+  <a data-target="#measure" href="#measure"><span class="an-mv">So what</span>Surprise, per token</a>
   <a data-target="#sparsity" href="#sparsity"><span class="an-mv">Where it breaks</span>More data won’t save it</a>
   <a data-target="#understanding" href="#understanding"><span class="an-mv">How sure</span>What you can claim</a>
 </nav>
