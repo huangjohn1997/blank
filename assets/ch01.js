@@ -11,9 +11,6 @@
     joint: { t: 'P(w₁ … w_T)', b: '<p>The probability of one specific passage of <span class="m">T</span> words — the whole thing, in that order. <span class="m">w</span> means “a word” and the little number is its position, so <span class="m">w₃</span> is the third one.</p><p>For <em>the boats went out</em>, <span class="m">T = 4</span>, and this is a single number: how much of its belief the model spent on exactly that sequence out of every 4-word sequence it could have expected.</p>' },
     prod: { t: 'that ∏ sign', b: '<p>It means “multiply all of these together”, once for each value of <span class="m">t</span> from 1 up to <span class="m">T</span>. Its cousin <span class="m">∑</span> does the same thing with addition.</p><p>It’s loop notation. If <span class="m">T = 3</span> it just means three things multiplied together, one per word.</p>' },
     cond: { t: 'P(wₜ ∣ w₁:ₜ₋₁)', b: '<p>The vertical bar means “given”. So: the odds of the word at position <span class="m">t</span>, given everything before it. That’s what <span class="m">w₁:ₜ₋₁</span> is shorthand for — positions 1 through <span class="m">t−1</span>.</p><p>This one expression is the model’s entire output. Everything else in the equation is just bookkeeping around it.</p>' },
-    phat: { t: 'the hat on P̂', b: '<p>A hat means “estimated from a sample” rather than “the actual truth”. It matters here, because the counts come from one finite pile of text, so the estimate carries that pile’s accidents.</p><p>No hat means the idealised number we wish we had.</p>' },
-    numer: { t: 'count(c, w)', b: '<p>How many times, in the whole corpus, context <span class="m">c</span> was followed immediately by word <span class="m">w</span>. A plain integer you could get by hand with enough coffee.</p>' },
-    denom: { t: 'count(c)', b: '<p>How many times context <span class="m">c</span> showed up at all, no matter what came next. Dividing by it is what turns raw tallies into odds that add up to 1.</p><p>And when it’s zero, the whole thing is undefined. That case is §1.5, and it eats the model.</p>' },
     loss: { t: 'L — the loss', b: '<p>One number for how well a model did on a text: average bits of surprise per token. Lower is better. Zero would mean it called every word correctly with total confidence.</p><p>Worth keeping landmarks in your head: a good modern model sits at a small handful of bits per token, a bad one at many.</p>' },
     sum: { t: 'the sum over positions', b: '<p>Add up the thing on the right, once per word. Together with the <span class="m">1/T</span> out front, this is just “take the average”.</p>' },
     log: { t: 'log₂', b: '<p>The base-2 logarithm: the power you’d raise 2 to in order to get your number. <span class="m">log₂(1/8) = −3</span>, because <span class="m">2⁻³ = 1/8</span>.</p><p>Probabilities are below 1, so their logs are always negative — which is why there’s a minus sign out front, to make the loss a positive number. Base 2 gives you bits. Natural log gives you “nats”. It changes the units, not the ranking.</p>' },
@@ -130,80 +127,8 @@
     });
   });
 
-  /* ── 1.2 · product vs sum ─────────────────────────────────────────── */
+  /* ── 1.2 · the lookup model, queried ────────────────────────────── */
   T.lab('lab-1-2', function (root) {
-    const SENT = C.words('the boats went out with the tide .');
-    const model = C.ngram(3), k = 0.1;
-    let step = 0, mode = 'sum';
-
-    const ctlSeg = el('div', { class: 'seg' });
-    [['sum', 'add surprise'], ['prod', 'multiply probabilities']].forEach(([m, label]) => {
-      const b = el('button', { type: 'button', text: label });
-      b.addEventListener('click', () => { mode = m; render(); });
-      ctlSeg.appendChild(b);
-    });
-    const btnStep = el('button', { class: 'btn', type: 'button', text: 'Step' });
-    const btnAll = el('button', { class: 'btn ghost', type: 'button', text: 'All' });
-    const btnReset = el('button', { class: 'btn ghost', type: 'button', text: 'Reset' });
-    btnStep.addEventListener('click', () => { step = Math.min(SENT.length, step + 1); render(); });
-    btnAll.addEventListener('click', () => { step = SENT.length; render(); });
-    btnReset.addEventListener('click', () => { step = 0; render(); });
-    root.appendChild(el('div', { class: 'ctl' }, [ctlSeg, btnStep, btnAll, btnReset]));
-    const out = el('div');
-    root.appendChild(out);
-
-    function pAt(i) {
-      const d = C.dist(model, SENT.slice(Math.max(0, i - 2), i), k);
-      if (!d.found) return { p: 1 / model.V, unseen: true };
-      const row = (d.allRows || []).find(r => r.tok === SENT[i]);
-      return { p: row ? row.p : k / d.denom, unseen: !row };
-    }
-
-    function render() {
-      Array.from(ctlSeg.children).forEach((c, i) => c.setAttribute('aria-pressed', (i === 0 ? 'sum' : 'prod') === mode ? 'true' : 'false'));
-      out.innerHTML = '';
-      const tb = el('table', { class: 'grid' });
-      const head = el('tr');
-      ['#', 'token', 'P(token ∣ two before)', 'surprise', mode === 'sum' ? 'running total (bits)' : 'running product'].forEach(c => head.appendChild(el('th', { text: c })));
-      tb.appendChild(el('thead', null, head));
-      const body = el('tbody');
-      let prod = 1, bits = 0;
-      for (let i = 0; i < step; i++) {
-        const { p, unseen } = pAt(i);
-        prod *= p; bits += -Math.log2(p);
-        const tr = el('tr', unseen ? { 'data-hi': '1' } : null);
-        tr.appendChild(el('td', { class: 'n', text: String(i + 1) }));
-        tr.appendChild(el('td', null, el('span', { class: 'm', text: SENT[i] })));
-        tr.appendChild(el('td', { class: 'n', text: fmtP(p) }));
-        tr.appendChild(el('td', { class: 'n', text: T.fmt(-Math.log2(p), 1) }));
-        tr.appendChild(el('td', { class: 'n', text: mode === 'sum' ? T.fmt(bits, 1) : (prod < 1e-4 ? prod.toExponential(2) : prod.toFixed(5)) }));
-        body.appendChild(tr);
-      }
-      tb.appendChild(body);
-      out.appendChild(el('div', { class: 'scroller' }, tb));
-      if (!step) {
-        out.appendChild(el('div', { class: 'readout', style: 'margin-top:.5rem', html: 'Hit <b>Step</b> to score <span class="m">' + SENT.join(' ') + '</span> one word at a time, using a trigram model with a little smoothing.' }));
-      } else {
-        out.appendChild(statRow([
-          { k: 'tokens scored', v: step + '<small>/' + SENT.length + '</small>' },
-          { k: 'joint probability', v: prod < 1e-4 ? prod.toExponential(1) : prod.toFixed(5), tone: prod < 1e-6 ? 'warn' : '' },
-          { k: 'total surprise', v: T.fmt(bits, 1) + '<small> bits</small>' },
-          { k: 'per token', v: T.fmt(bits / step, 2) + '<small> bits</small>', tone: 'good' }
-        ]));
-        if (step === SENT.length) {
-          out.appendChild(el('p', {
-            class: 'fig-cap', style: 'margin-top:.5rem',
-            html: 'Joint probability: <b>' + prod.toExponential(1) + '</b>. The only thing you can read off that number is “small”. The exact same information as <b>' +
-              T.fmt(bits / step, 2) + ' bits per token</b> can be compared to any other passage of any length. Highlighted rows are places where the model had never seen this context before and fell back on insurance.'
-          }));
-        }
-      }
-    }
-    render();
-  });
-
-  /* ── 1.3 · the counting model, queried ────────────────────────────── */
-  T.lab('lab-1-3', function (root) {
     const PRESETS = ['filled the lamp with', 'the keeper', 'the ninety', 'out of the', 'the girl', 'came down from the'];
     let n = 3, ctxText = 'the keeper';
 
@@ -261,8 +186,8 @@
     render();
   });
 
-  /* ── 1.4 · generation, with copying made visible ──────────────────── */
-  T.lab('lab-1-4', function (root) {
+  /* ── 1.3 · generation, with copying made visible ──────────────────── */
+  T.lab('lab-1-3', function (root) {
     const W = 6;                                     // copied span = W consecutive tokens
     let n = 3, temp = 1.0, seed = 1234;
     const grams = new Set();
@@ -318,8 +243,8 @@
     render();
   });
 
-  /* ── 1.5 · scoring held-out text ──────────────────────────────────── */
-  T.lab('lab-1-5', function (root) {
+  /* ── 1.4 · scoring held-out text ──────────────────────────────────── */
+  T.lab('lab-1-4', function (root) {
     const KS = [0, 0.001, 0.01, 0.1, 0.5, 1];
     let n = 3, ki = 0;
 
@@ -377,8 +302,8 @@
     render();
   });
 
-  /* ── 1.6 · the coverage cliff ─────────────────────────────────────── */
-  T.lab('lab-1-6', function (root) {
+  /* ── 1.5 · the coverage cliff ─────────────────────────────────────── */
+  T.lab('lab-1-5', function (root) {
     const NS = [1, 2, 3, 4, 5, 6];
     const data = NS.map(n => C.coverage(n));
     const W = 560, H = 250, L = 46, B = 44, Rr = 8, Tt = 26;
@@ -417,8 +342,8 @@
     }));
   });
 
-  /* ── 1.7 · Zipf and Heaps ─────────────────────────────────────────── */
-  T.lab('lab-1-7', function (root) {
+  /* ── 1.6 · the tail: frequency and vocabulary growth ─────────────────────────────────────────── */
+  T.lab('lab-1-6', function (root) {
     const z = C.zipf(), Tk = C.trainTokens();
     let view = 'freq';
     const seg = el('div', { class: 'seg' });

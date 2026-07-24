@@ -52,6 +52,9 @@ for (const page of PAGES) {
     if (!resp || !resp.ok()) { failures.push(`${page}: HTTP ${resp && resp.status()}`); await ctx.close(); continue; }
     await pg.waitForSelector('html[data-ready="1"]', { timeout: 8000 }).catch(() => failures.push(`${page} @${vp.w}: runtime never finished booting`));
     await pg.waitForTimeout(350);
+    // open every optional disclosure so its contents are measured too
+    await pg.evaluate(() => document.querySelectorAll('details').forEach(d => (d.open = true)));
+    await pg.waitForTimeout(200);
 
     const report = await pg.evaluate(() => {
       const vw = window.innerWidth;

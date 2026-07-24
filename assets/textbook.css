@@ -382,6 +382,73 @@ mrow[data-ex]:hover{background:var(--ochre-soft);outline:1px solid color-mix(in 
 mrow[data-ex]:focus-visible{outline:2.5px solid var(--focus)}
 .eqn-legend{font-family:var(--sans);font-size:.68rem;color:var(--ink-3);padding:0 .75rem .6rem}
 
+
+
+/* ── reflowing mechanism diagram (stacks on phones, flows on wide) ─── */
+.flow{display:flex;flex-direction:column;gap:.35rem;align-items:stretch}
+@media (min-width:44rem){.flow{flex-direction:row;align-items:center;gap:.55rem}}
+.fl-step{min-width:0}
+@media (min-width:44rem){.fl-step.grow{flex:1 1 auto}}
+.fl-k{font-family:var(--sans);font-size:.56rem;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin-bottom:.2rem;font-weight:700}
+.fl-box{
+  border:1px solid var(--rule);border-radius:8px;background:var(--surface-3);
+  padding:.5rem .6rem;font-family:var(--mono);font-size:.84rem;line-height:1.4;color:var(--ink);
+}
+.fl-box.model{
+  background:var(--navy-soft);border-color:var(--navy);border-width:1.4px;
+  font-family:var(--sans);text-align:center;
+}
+.fl-box.model b{display:block;font-size:1rem;color:var(--navy);font-weight:700}
+.fl-box.model span{font-size:.72rem;color:var(--navy)}
+.fl-arr{flex:none;text-align:center;color:var(--axis);font-size:1rem;line-height:1}
+.fl-arr::before{content:"↓"}
+@media (min-width:44rem){.fl-arr::before{content:"→"}}
+.fl-bars{display:grid;gap:.18rem}
+.fl-bar{display:grid;grid-template-columns:minmax(0,1fr) 6rem;gap:.4rem;align-items:center}
+.fl-bar .tr{background:var(--surface-3);border-radius:3px;height:.72rem;overflow:hidden}
+.fl-bar .tr i{display:block;height:100%;background:var(--s1);border-radius:3px}
+.fl-bar .lb{font-family:var(--mono);font-size:.72rem;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fl-bar.faint .tr i{opacity:.45}
+.fl-bar.faint .lb{color:var(--ink-3)}
+.fl-note{font-family:var(--sans);font-size:.68rem;color:var(--ink-3);margin-top:.3rem}
+.fl-loop{
+  display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin-top:.7rem;
+  border-top:1px dashed color-mix(in srgb,var(--vermilion) 45%,transparent);padding-top:.6rem;
+}
+.fl-pill{
+  font-family:var(--sans);font-size:.78rem;font-weight:650;color:var(--vermilion);
+  background:var(--vermilion-soft);border:1.3px solid var(--vermilion);border-radius:99px;padding:.28rem .7rem;
+}
+.fl-loop em{font-family:var(--sans);font-size:.78rem;color:var(--vermilion)}
+
+/* ── the idea card: a concept stated plainly, math demoted to opt-in ── */
+.idea{
+  margin:1.6rem 0;border:1px solid var(--rule);border-left:3px solid var(--navy);
+  border-radius:0 10px 10px 0;background:var(--surface-1);padding:.8rem .9rem;
+  max-width:min(100%,44rem);
+}
+.idea .i-k{font-family:var(--sans);font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--navy);font-weight:700;margin-bottom:.3rem}
+.idea .i-s{font-size:1.06rem;line-height:1.42;font-weight:600;margin:0 0 .55rem;max-width:none;color:var(--ink)}
+.idea p{max-width:none;font-size:.96rem;margin-bottom:.5rem}
+.idea p:last-child{margin-bottom:0}
+.idea table.feel{border-collapse:collapse;font-family:var(--sans);font-size:.82rem;margin:.5rem 0 .2rem;width:100%;max-width:24rem;table-layout:auto}
+.idea table.feel th{font-size:.58rem;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:0 .55rem .18rem 0;font-weight:700}
+.idea table.feel td{padding:.22rem .55rem .22rem 0;border-bottom:1px solid var(--rule-soft)}
+.idea table.feel td:first-child{font-family:var(--mono);color:var(--navy)}
+.idea table.feel td:nth-child(2){font-family:var(--mono);color:var(--vermilion);white-space:nowrap;font-weight:600}
+.idea table.feel td:last-child{color:var(--ink-2);font-size:.95em}
+
+details.formal{margin:1rem 0 1.4rem;max-width:min(100%,44rem)}
+details.formal > summary{
+  font-family:var(--sans);font-size:.74rem;letter-spacing:.02em;color:var(--ink-3);
+  cursor:pointer;padding:.4rem 0;list-style:none;display:flex;align-items:center;gap:.4rem;
+}
+details.formal > summary::before{content:"▸";color:var(--ochre);font-size:.7rem}
+details[open].formal > summary::before{content:"▾"}
+details.formal > summary:hover{color:var(--ink)}
+details.formal > summary::-webkit-details-marker{display:none}
+details.formal .eqn{margin:.3rem 0 0}
+
 /* ── callouts, activities, assessment ──────────────────────────────── */
 .aside-box{
   margin:1.5rem 0;padding:.75rem .85rem;border-left:3px solid var(--ochre);
