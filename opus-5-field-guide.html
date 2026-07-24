@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reading Opus 5 — A Field Guide to the Model Card's Quiet Parts</title>
+<style>
+/* ============================================================
+   TYPE & COLOR SYSTEM
+   ============================================================ */
+:root{
+  --paper:#fbf8f3;
+  --paper-2:#f4efe6;
+  --rule:#ddd4c5;
+  --rule-soft:#e8e1d4;
+  --ink:#22201d;
+  --ink-2:#4a463f;
+  --ink-3:#78716544;
+  --muted:#7d7568;
+  --accent:#a4462d;         /* terracotta */
+  --accent-soft:#a4462d18;
+  --accent-2:#3c5a72;       /* slate blue */
+  --accent-2-soft:#3c5a7214;
+  --gold:#8a6d1f;
+  --gold-soft:#8a6d1f16;
+  --green:#3f6b4a;
+  --green-soft:#3f6b4a14;
+  --code-bg:#f2ece1;
+  --code-ink:#3a352c;
+  --shadow:0 1px 2px rgba(40,32,20,.05), 0 8px 28px -12px rgba(40,32,20,.14);
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,"Times New Roman",serif;
+  --sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --measure:34rem;
+}
+html[data-theme="dark"]{
+  --paper:#16151a;
+  --paper-2:#1e1d23;
+  --rule:#33313b;
+  --rule-soft:#292830;
+  --ink:#e8e4dc;
+  --ink-2:#c0bab0;
+  --ink-3:#8a8378;
+  --muted:#948c81;
+  --accent:#e08b6c;
+  --accent-soft:#e08b6c1f;
+  --accent-2:#8fb4cf;
+  --accent-2-soft:#8fb4cf16;
+  --gold:#d7b45a;
+  --gold-soft:#d7b45a16;
+  --green:#84b992;
+  --green-soft:#84b99216;
+  --code-bg:#22212a;
+  --code-ink:#d8d2c8;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.55);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--serif);font-size:19px;line-height:1.66;
+  font-kerning:normal;font-variant-ligatures:common-ligatures;
+  text-rendering:optimizeLegibility;
+  transition:background .35s ease,color .35s ease;
+}
+
+/* ---------- progress + chrome ---------- */
+#progress{position:fixed;top:0;left:0;height:2px;background:var(--accent);width:0;z-index:100;transition:width .1s linear}
+#topbar{
+  position:fixed;top:0;right:0;z-index:99;display:flex;gap:.4rem;align-items:center;
+  padding:.7rem 1rem;
+}
+.chip{
+  font-family:var(--sans);font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;
+  background:var(--paper-2);color:var(--muted);border:1px solid var(--rule);
+  padding:.42rem .7rem;border-radius:999px;cursor:pointer;
+  transition:all .18s ease;backdrop-filter:blur(8px);
+}
+.chip:hover{color:var(--ink);border-color:var(--ink-3);transform:translateY(-1px)}
+
+/* ---------- layout ---------- */
+.wrap{max-width:1420px;margin:0 auto;padding:0 clamp(1rem,4vw,3rem)}
+.shell{display:grid;grid-template-columns:16rem minmax(0,1fr);gap:clamp(1.5rem,4vw,4.5rem);align-items:start}
+nav#toc{
+  position:sticky;top:2.5rem;max-height:calc(100vh - 5rem);overflow-y:auto;
+  font-family:var(--sans);font-size:.79rem;line-height:1.45;padding-bottom:3rem;
+  scrollbar-width:thin;
+}
+nav#toc::-webkit-scrollbar{width:5px}
+nav#toc::-webkit-scrollbar-thumb{background:var(--rule);border-radius:9px}
+nav#toc .toc-title{
+  font-size:.64rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);
+  padding-bottom:.6rem;margin-bottom:.7rem;border-bottom:1px solid var(--rule);
+}
+nav#toc a{
+  display:block;color:var(--ink-2);text-decoration:none;padding:.3rem 0 .3rem .75rem;
+  border-left:2px solid transparent;transition:all .16s ease;
+}
+nav#toc a:hover{color:var(--accent);border-left-color:var(--rule)}
+nav#toc a.active{color:var(--accent);border-left-color:var(--accent);font-weight:600}
+nav#toc a .num{color:var(--ink-3);font-variant-numeric:tabular-nums;margin-right:.45em;font-size:.9em}
+nav#toc .grp{margin-top:1.1rem;font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);padding-left:.75rem}
+
+main{min-width:0;padding-bottom:8rem}
+
+/* ---------- cover ---------- */
+header.cover{
+  padding:clamp(3.5rem,11vh,8rem) 0 clamp(2.5rem,6vh,4rem);
+  border-bottom:1px solid var(--rule);margin-bottom:3.5rem;
+}
+.imprint{
+  font-family:var(--sans);font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:1.6rem;
+}
+h1.title{
+  font-size:clamp(2.3rem,5.6vw,4rem);line-height:1.04;margin:0 0 .9rem;
+  font-weight:600;letter-spacing:-.02em;max-width:24ch;
+}
+h1.title em{font-style:italic;color:var(--accent)}
+.subtitle{
+  font-size:clamp(1.05rem,2vw,1.3rem);color:var(--ink-2);font-style:italic;
+  max-width:44ch;margin:0 0 2.2rem;line-height:1.5;
+}
+.colophon{
+  display:flex;flex-wrap:wrap;gap:.6rem 2.2rem;font-family:var(--sans);font-size:.72rem;
+  color:var(--muted);border-top:1px solid var(--rule-soft);padding-top:1.3rem;max-width:60rem;
+}
+.colophon b{color:var(--ink-2);font-weight:600;letter-spacing:.02em}
+
+/* ---------- abstract ---------- */
+.abstract{
+  background:var(--paper-2);border:1px solid var(--rule-soft);border-radius:3px;
+  padding:1.7rem 1.9rem;margin:0 0 3.2rem;box-shadow:var(--shadow);
+}
+.abstract h3{
+  font-family:var(--sans);font-size:.66rem;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--accent);margin:0 0 .8rem;
+}
+.abstract p{margin:0 0 .8rem;font-size:1.02rem;color:var(--ink-2)}
+.abstract p:last-child{margin-bottom:0}
+
+/* ---------- sections ---------- */
+section{margin-bottom:4.2rem;scroll-margin-top:2rem}
+.ch-label{
+  font-family:var(--sans);font-size:.64rem;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:.55rem;display:flex;align-items:center;gap:.7rem;
+}
+.ch-label::after{content:"";flex:1;height:1px;background:var(--rule-soft)}
+h2{
+  font-size:clamp(1.6rem,3.2vw,2.15rem);line-height:1.15;margin:0 0 1.1rem;
+  font-weight:600;letter-spacing:-.015em;max-width:30ch;
+}
+h3{
+  font-size:1.18rem;margin:2.4rem 0 .7rem;font-weight:600;letter-spacing:-.005em;
+  display:flex;align-items:baseline;gap:.55rem;
+}
+h3 .sec-no{font-family:var(--sans);font-size:.72rem;color:var(--accent);font-weight:600;font-variant-numeric:tabular-nums}
+h4{font-size:1rem;margin:1.6rem 0 .5rem;font-weight:600;color:var(--ink)}
+p{margin:0 0 1.05rem;max-width:var(--measure)}
+.lede{font-size:1.09rem;color:var(--ink-2);max-width:38rem}
+.lede::first-letter{
+  float:left;font-size:3.5em;line-height:.82;padding:.06em .1em 0 0;
+  color:var(--accent);font-weight:600;
+}
+ul,ol{max-width:var(--measure);padding-left:1.3rem;margin:0 0 1.1rem}
+li{margin-bottom:.5rem}
+li::marker{color:var(--accent)}
+strong{font-weight:600}
+em.term{font-style:normal;font-weight:600;color:var(--accent-2)}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+hr.orn{border:0;text-align:center;margin:2.8rem 0;max-width:var(--measure)}
+hr.orn::before{content:"❦";color:var(--rule);font-size:1rem;letter-spacing:.6em}
+
+/* ---------- margin notes ---------- */
+.withnote{display:grid;grid-template-columns:minmax(0,var(--measure)) 1fr;gap:2rem;align-items:start;margin-bottom:1.05rem}
+.withnote > p{margin-bottom:0}
+.note{
+  font-family:var(--sans);font-size:.74rem;line-height:1.5;color:var(--muted);
+  border-left:2px solid var(--rule);padding-left:.85rem;max-width:17rem;
+}
+.note b{color:var(--ink-2);display:block;font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:.25rem}
+
+/* ---------- callouts ---------- */
+.box{
+  border:1px solid var(--rule-soft);border-left:3px solid var(--accent);border-radius:2px;
+  padding:1.15rem 1.35rem;margin:1.5rem 0;max-width:44rem;background:var(--paper-2);
+}
+.box .k{
+  font-family:var(--sans);font-size:.63rem;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:.5rem;display:flex;align-items:center;gap:.45rem;
+}
+.box p:last-child,.box ul:last-child,.box ol:last-child{margin-bottom:0}
+.box p,.box li{max-width:none;font-size:.96rem}
+.box.quirk{border-left-color:var(--gold);background:var(--gold-soft)}
+.box.quirk .k{color:var(--gold)}
+.box.break{border-left-color:var(--accent);background:var(--accent-soft)}
+.box.do{border-left-color:var(--green);background:var(--green-soft)}
+.box.do .k{color:var(--green)}
+.box.why{border-left-color:var(--accent-2);background:var(--accent-2-soft)}
+.box.why .k{color:var(--accent-2)}
+
+/* ---------- code / prompts ---------- */
+.snip{position:relative;margin:1.1rem 0;max-width:46rem}
+pre{
+  background:var(--code-bg);color:var(--code-ink);border:1px solid var(--rule-soft);
+  border-radius:3px;padding:1rem 1.15rem;overflow-x:auto;margin:0;
+  font-family:var(--mono);font-size:.79rem;line-height:1.6;white-space:pre-wrap;
+}
+pre.wrapped{white-space:pre-wrap}
+code{font-family:var(--mono);font-size:.855em;background:var(--code-bg);padding:.1em .34em;border-radius:3px;color:var(--code-ink)}
+pre code{background:none;padding:0;font-size:1em}
+.snip .cap{
+  font-family:var(--sans);font-size:.65rem;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:.4rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;
+}
+.copy{
+  font-family:var(--sans);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;
+  background:none;border:1px solid var(--rule);color:var(--muted);border-radius:999px;
+  padding:.22rem .6rem;cursor:pointer;transition:all .16s;flex:none;
+}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
+.copy.ok{color:var(--green);border-color:var(--green)}
+
+/* ---------- tables ---------- */
+.tbl{overflow-x:auto;margin:1.4rem 0;border:1px solid var(--rule-soft);border-radius:3px;background:var(--paper-2)}
+table{width:100%;border-collapse:collapse;font-family:var(--sans);font-size:.81rem}
+th,td{text-align:left;padding:.62rem .8rem;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+thead th{
+  font-size:.63rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);
+  background:var(--paper);border-bottom:1px solid var(--rule);white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--accent-soft)}
+td.hl{color:var(--accent);font-weight:600}
+td b{color:var(--ink)}
+.num-c{font-variant-numeric:tabular-nums}
+.yes{color:var(--green);font-weight:600}
+.no{color:var(--accent);font-weight:600}
+
+/* ---------- quirk grid ---------- */
+.grid{display:grid;gap:1rem;margin:1.5rem 0;grid-template-columns:repeat(auto-fit,minmax(15.5rem,1fr));max-width:60rem}
+.card{
+  border:1px solid var(--rule-soft);border-radius:3px;padding:1rem 1.1rem;background:var(--paper-2);
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+.card:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.card .t{font-family:var(--sans);font-size:.8rem;font-weight:650;margin-bottom:.35rem;color:var(--ink);letter-spacing:-.01em}
+.card .d{font-family:var(--sans);font-size:.76rem;line-height:1.5;color:var(--ink-2)}
+.card .tag{
+  font-family:var(--sans);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:.45rem;
+}
+
+/* ---------- stat row ---------- */
+.stats{display:grid;gap:1px;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));background:var(--rule-soft);border:1px solid var(--rule-soft);border-radius:3px;margin:1.5rem 0;max-width:56rem;overflow:hidden}
+.stat{background:var(--paper-2);padding:.95rem 1rem}
+.stat .v{font-family:var(--sans);font-size:1.35rem;font-weight:650;color:var(--accent);letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.stat .l{font-family:var(--sans);font-size:.66rem;letter-spacing:.05em;color:var(--muted);margin-top:.3rem;line-height:1.35}
+
+/* ---------- decision flow ---------- */
+.flow{margin:1.5rem 0;max-width:46rem}
+.step{display:grid;grid-template-columns:2rem 1fr;gap:.9rem;padding:.7rem 0;border-bottom:1px dashed var(--rule-soft)}
+.step:last-child{border-bottom:0}
+.step .n{
+  font-family:var(--sans);font-size:.7rem;font-weight:650;color:var(--paper);background:var(--accent-2);
+  width:1.6rem;height:1.6rem;border-radius:50%;display:grid;place-items:center;margin-top:.15rem;
+}
+.step .b{font-family:var(--sans);font-size:.86rem;line-height:1.5;color:var(--ink-2)}
+.step .b b{color:var(--ink)}
+
+/* ---------- footnotes / sources ---------- */
+sup.fn{font-size:.62em;color:var(--accent);font-family:var(--sans);font-weight:650;padding-left:.1em}
+.srcs{font-family:var(--sans);font-size:.76rem;line-height:1.55;max-width:48rem}
+.srcs li{margin-bottom:.5rem;color:var(--ink-2)}
+.prov{
+  border:1px dashed var(--rule);border-radius:3px;padding:1.1rem 1.3rem;background:none;
+  max-width:46rem;margin:1.5rem 0;font-family:var(--sans);font-size:.8rem;line-height:1.55;color:var(--ink-2);
+}
+.prov b{color:var(--ink)}
+.pill{
+  display:inline-block;font-family:var(--sans);font-size:.58rem;letter-spacing:.1em;text-transform:uppercase;
+  padding:.14rem .45rem;border-radius:3px;vertical-align:middle;margin-left:.35em;font-weight:650;
+}
+.pill.card-src{background:var(--accent-2-soft);color:var(--accent-2)}
+.pill.docs{background:var(--green-soft);color:var(--green)}
+.pill.third{background:var(--gold-soft);color:var(--gold)}
+
+footer{border-top:1px solid var(--rule);padding-top:2rem;margin-top:4rem;font-family:var(--sans);font-size:.76rem;color:var(--muted);max-width:48rem}
+
+/* ---------- responsive ---------- */
+@media (max-width:1080px){
+  .shell{grid-template-columns:1fr}
+  nav#toc{position:static;max-height:none;border-bottom:1px solid var(--rule);margin-bottom:2.5rem;padding-bottom:1.5rem}
+  nav#toc .cols{columns:2;column-gap:2rem}
+  .withnote{grid-template-columns:1fr}
+  .note{border-left:0;border-top:1px solid var(--rule);padding:.7rem 0 0;max-width:var(--measure);margin-top:.4rem}
+}
+@media (max-width:620px){
+  body{font-size:17.5px}
+  nav#toc .cols{columns:1}
+  #topbar{padding:.5rem .6rem}
+  .chip{font-size:.6rem;padding:.35rem .55rem}
+}
+@media print{
+  #topbar,#progress,nav#toc,.copy{display:none}
+  .shell{grid-template-columns:1fr}
+  body{background:#fff;font-size:11pt}
+  section{page-break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div id="progress"></div>
+<div id="topbar">
+  <button class="chip" id="theme">◐ Theme</button>
+  <button class="chip" onclick="window.print()">⎙ Print</button>
+</div>
+
+<div class="wrap">
+<header class="cover">
+  <div class="imprint">A Field Guide · Edition of July 24, 2026</div>
+  <h1 class="title">Reading <em>Opus 5</em></h1>
+  <p class="subtitle">The model card's quiet parts — surprising behaviors, small quirks, and the operating knowledge that never makes the launch post.</p>
+  <div class="colophon">
+    <div><b>Subject</b> · claude-opus-5</div>
+    <div><b>Card dated</b> · 24 July 2026</div>
+    <div><b>Compared against</b> · Opus 4.8 · Fable 5</div>
+    <div><b>Reading time</b> · ~35 min</div>
+  </div>
+</header>
+
+<div class="shell">
+<nav id="toc">
+  <div class="toc-title">Contents</div>
+  <div class="cols">
+    <div class="grp">Part I · The Object</div>
+    <a href="#ch1"><span class="num">1</span>What kind of release this is</a>
+    <a href="#ch2"><span class="num">2</span>Two breaking changes</a>
+    <a href="#ch3"><span class="num">3</span>The effort ladder, re-read</a>
+    <div class="grp">Part II · Behavior</div>
+    <a href="#ch4"><span class="num">4</span>Seven drifts you'll notice</a>
+    <a href="#ch5"><span class="num">5</span>Quirks in the machinery</a>
+    <a href="#ch6"><span class="num">6</span>What it says about itself</a>
+    <div class="grp">Part III · Judgment</div>
+    <a href="#ch7"><span class="num">7</span>The safety envelope, felt</a>
+    <a href="#ch8"><span class="num">8</span>Opus 5 vs 4.8 vs Fable 5</a>
+    <a href="#ch9"><span class="num">9</span>A day-to-day playbook</a>
+    <div class="grp">Back Matter</div>
+    <a href="#appA"><span class="num">A</span>Benchmark ledger</a>
+    <a href="#appB"><span class="num">B</span>Migration checklist</a>
+    <a href="#appC"><span class="num">C</span>Provenance &amp; sources</a>
+  </div>
+</nav>
+
+<main>
+
+<div class="abstract">
+  <h3>What this guide is for</h3>
+  <p>Every model launch produces two documents. One is the headline: <em>bigger numbers, same price</em>. The other is the boring one — the migration note, the behavior-change list, the paragraph in the system card where an evaluation didn't go the way anyone expected. The second document is the one that changes how you actually work.</p>
+  <p>This guide is an attempt at the second document for Claude Opus 5. It assumes you already know that it's good at coding. It concentrates on the things that will surprise you in week one: why your prompts now produce longer answers, why your carefully-tuned "verify your work" instruction is now making output <em>worse</em>, why lowering <code>effort</code> doesn't shorten replies, why a code-review prompt that asks for restraint now returns fewer real bugs, and what the card admits about the model's own uncertainty.</p>
+</div>
+
+<!-- ============================================================ -->
+<section id="ch1">
+  <div class="ch-label">Chapter One</div>
+  <h2>What kind of release this is</h2>
+  <p class="lede">Opus 5 is unusual in the family in one specific way: it is a step-change model shipped at a maintenance-release price. Anthropic's own documentation calls it "a step-change improvement rather than an incremental one," and then prices it identically to Opus 4.8 — $5 per million input tokens, $25 per million output. The interesting consequence is that the decision to migrate is not economic. It is behavioral. You are not trading money for capability; you are trading a set of habits.</p>
+
+  <div class="stats">
+    <div class="stat"><div class="v">$5 / $25</div><div class="l">per MTok in / out — unchanged from Opus 4.8</div></div>
+    <div class="stat"><div class="v">1M</div><div class="l">context window: both the default <em>and</em> the maximum</div></div>
+    <div class="stat"><div class="v">128k</div><div class="l">max output tokens (300k on the Batch API, beta header)</div></div>
+    <div class="stat"><div class="v">May 2026</div><div class="l">reliable knowledge cutoff — the latest in the family</div></div>
+    <div class="stat"><div class="v">5</div><div class="l">effort levels: low → medium → high → xhigh → max</div></div>
+    <div class="stat"><div class="v">512</div><div class="l">min cacheable prompt tokens, halved from 1,024</div></div>
+  </div>
+
+  <h3><span class="sec-no">1.1</span>The positioning nobody states plainly</h3>
+  <div class="withnote">
+    <p>The family now has two frontiers, not one. <em class="term">Fable 5</em> is described as Anthropic's most capable widely released model and costs $10/$50. Opus 5 sits at half that price and, on Anthropic's framing, comes close to Fable's intelligence. Third-party measurement broadly agrees: on the Artificial Analysis Intelligence Index, Opus 5 at <code>max</code> effort reportedly scores 61 against Fable 5's 60.<sup class="fn">1</sup></p>
+    <div class="note"><b>Read the specs sideways</b>Opus 5's knowledge cutoff (May 2026) is <em>four months later</em> than Fable 5's (Jan 2026). For anything touching recent libraries, APIs, or events, the cheaper model is the better-informed one.</div>
+  </div>
+  <p>That inversion is the first non-obvious fact of this release: the flagship is not strictly ahead on every axis. Opus 5 is newer, cheaper, faster, and knows more recent things. Fable 5 remains the pick for a specific shape of work — long-horizon autonomy measured in hours or days — which Chapter 8 unpacks.</p>
+
+  <h3><span class="sec-no">1.2</span>Where the gains actually landed</h3>
+  <p>The documented improvement areas over Opus 4.8, in the order they'll matter to you:</p>
+  <div class="grid">
+    <div class="card"><div class="tag">Agentic coding</div><div class="t">Finishes instead of stubbing</div><div class="d">Multi-file features, large refactors, end-to-end work — explicitly "without leaving stubs or placeholders." Performs best given the whole spec up front and then left alone.</div></div>
+    <div class="card"><div class="tag">Review</div><div class="t">High precision <em>and</em> recall</div><div class="d">Finds real bugs at a high rate per pass, and the extra findings are mostly real rather than noise. Accuracy holds at lower effort — which enables a cheap pass now, thorough pass later.</div></div>
+    <div class="card"><div class="tag">Economy</div><div class="t">low/medium got good</div><div class="d">The bottom of the effort ladder now beats the <em>same</em> settings on earlier Opus models. This is the single biggest cost lever in the release and the most under-used.</div></div>
+    <div class="card"><div class="tag">Long context</div><div class="t">Consistent across 1M</div><div class="d">Instruction-following, tool calling, and reasoning stay consistent throughout the window — not just retrieval accuracy, which is what most long-context claims mean.</div></div>
+    <div class="card"><div class="tag">Vision</div><div class="t">Tools beat thinking</div><div class="d">Strong on charts, documents, diagrams, UI replication — and strongest when given tools to crop, analyze, and visually verify. Tool access is a more cost-effective lever than raising effort.</div></div>
+    <div class="card"><div class="tag">Orchestration</div><div class="t">Subagents that don't collide</div><div class="d">Effective writer–verifier patterns with "few cases of agents overwriting each other's work" — the failure mode that made earlier multi-agent setups untrustworthy.</div></div>
+    <div class="card"><div class="tag">Office work</div><div class="t">Real spreadsheets</div><div class="d">Multi-sheet workbooks with non-trivial formulas, and structured slide decks. Give it your template or style explicitly; it won't guess your house style.</div></div>
+    <div class="card"><div class="tag">Scaling</div><div class="t">Effort converts to quality</div><div class="d">Test-time compute scaling improved: additional effort up to <code>max</code> actually buys results, which was less reliably true on earlier models.</div></div>
+  </div>
+
+  <div class="box why">
+    <div class="k">Why this matters more than the benchmark</div>
+    <p>"Finds real bugs with few false positives" and "effort converts to quality" are statements about <em>the shape of your workflow</em>, not about a score. The first means a review pass is now worth reading in full. The second means an effort sweep on your own evals is a real optimization with real headroom — not a rounding error.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="ch2">
+  <div class="ch-label">Chapter Two</div>
+  <h2>Two breaking changes, and the second one is sharp</h2>
+  <p class="lede">Most Claude migrations are a string swap. This one is a string swap plus two things that will throw errors or bills at you if you skip the note. Both concern thinking, and both are easy to miss precisely because they only bite configurations that were previously fine.</p>
+
+  <h3><span class="sec-no">2.1</span>Thinking is on by default</h3>
+  <div class="withnote">
+    <p>On Opus 4.8, a request with no <code>thinking</code> field ran without thinking. On Opus 5, the identical request runs <em>with</em> adaptive thinking: the model decides when and how much to think, per turn. The wire format didn't change — <code>thinking: {"type":"adaptive"}</code> remains valid and is now simply equivalent to the default.</p>
+    <div class="note"><b>The bill, not the error</b>This one usually doesn't 400. It quietly changes your token accounting, because <code>max_tokens</code> is a hard ceiling on <em>thinking plus response text</em> combined.</div>
+  </div>
+  <div class="box break">
+    <div class="k">⚠ The silent truncation</div>
+    <p>If a workload ran without thinking on 4.8 and had <code>max_tokens</code> tuned tightly to its expected answer length, that budget is now shared with thinking. The response can hit the ceiling and truncate with <code>stop_reason: "max_tokens"</code> — output that looks like the model "stopped mid-sentence" rather than like a config error. Revisit <code>max_tokens</code> on every workload that previously ran thinking-free.</p>
+  </div>
+
+  <h3><span class="sec-no">2.2</span>You can no longer disable thinking at the top of the ladder</h3>
+  <p><code>thinking: {"type":"disabled"}</code> still works — but only at effort <code>high</code> or below. Combine it with <code>xhigh</code> or <code>max</code> and you get a <strong>400 error</strong>. Opus 4.8 accepted that combination happily, which is exactly why it's worth auditing: the requests that break are the ones that used to be legal.</p>
+  <div class="snip">
+    <div class="cap"><span>Rejected on Opus 5 · accepted on Opus 4.8</span><button class="copy">copy</button></div>
+<pre><code>client.messages.create(
+    model="claude-opus-5",
+    max_tokens=16000,
+    thinking={"type": "disabled"},
+    output_config={"effort": "xhigh"},   # ← 400 error
+    messages=[...],
+)</code></pre>
+  </div>
+  <p>Two ways out. Either keep the effort level and drop the <code>thinking</code> field (thinking is on by default anyway), or keep thinking disabled and step effort down to <code>high</code> or lower. The validation is <strong>per request</strong>, not per conversation — a mid-session escalation to <code>xhigh</code> is rejected even if every earlier turn in the same conversation was accepted.</p>
+
+  <div class="box quirk">
+    <div class="k">◆ Quirk · The two artifacts of a thinking-free Opus 5</div>
+    <p>Disabling thinking is legal but it costs you output hygiene. Two artifacts occasionally surface in visible text:</p>
+    <ul>
+      <li><strong>Tool calls rendered as text.</strong> The model writes what should have been a structured <code>tool_use</code> block into its user-facing prose instead. The turn completes normally and <em>the call never runs</em>. Worse, in an agentic loop the leaked text stays in conversation history, so later turns are contaminated too. Most common on tool-heavy workloads like search.</li>
+      <li><strong>Internal XML tags in the response.</strong> <code>&lt;thinking&gt;</code> and similar tags can leak into visible output.</li>
+    </ul>
+    <p>The documented mitigation for the first is counterintuitive — give it <em>permission to talk</em>, so it stops smuggling the call into prose: <code>"You may say a brief sentence before using a tool."</code></p>
+    <p>And for the second, an instruction telling the model not to think or not to reason <strong>increases</strong> tag leakage. Remove those. Use the general form — <code>"Do not include internal or system XML tags in your response."</code> — because instructions that name thinking tags specifically work <em>less</em> well than the general one.</p>
+  </div>
+
+  <div class="box do">
+    <div class="k">✓ The actual recommendation</div>
+    <p>Don't disable thinking to save money. Keep it on and use lower <code>effort</code> as the cost control. That is Anthropic's stated primary mitigation for both artifacts, and on this model the low end of the ladder is genuinely good.</p>
+  </div>
+
+  <h3><span class="sec-no">2.3</span>Three smaller edges in the same neighborhood</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Edge</th><th>Behavior</th><th>Why you'd hit it</th></tr></thead>
+    <tbody>
+      <tr><td><b>Sampling params</b></td><td>Non-default <code>temperature</code>, <code>top_p</code>, or <code>top_k</code> return <span class="no">400</span> on <em>every</em> request — regardless of whether thinking is used</td><td>Ported code from an older model that set <code>temperature=0</code> "for determinism"</td></tr>
+      <tr><td><b>Thinking display</b></td><td>Defaults to <code>"omitted"</code> — blocks come back with an empty <code>thinking</code> field. The <code>signature</code> still carries encrypted thinking for multi-turn continuity</td><td>You built a UI that renders reasoning and now shows blanks. Opt in with <code>display: "summarized"</code></td></tr>
+      <tr><td><b>Priority Tier</b></td><td><span class="no">Not supported</span> on Opus 5. Opus 4.8 keeps it</td><td>An org with a capacity commitment migrates and loses the guarantee. Plan capacity separately</td></tr>
+    </tbody>
+  </table></div>
+  <p>On the upside of the same ledger: interleaved thinking between tool calls is <strong>automatic</strong> on Opus 5 with no beta header, and the minimum cacheable prompt dropped to 512 tokens — so prompts that were previously too short to cache now create cache entries with no code change at all.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="ch3">
+  <div class="ch-label">Chapter Three</div>
+  <h2>The effort ladder, re-read</h2>
+  <p class="lede">Effort is the most misunderstood parameter in the current API, and Opus 5 adds a twist that breaks the most common mental model of it. If you take one operational idea from this guide, take this one: effort governs how much the model <em>works</em>, not how much it <em>says</em>.</p>
+
+  <h3><span class="sec-no">3.1</span>What effort actually touches</h3>
+  <p>Effort is a behavioral signal applied to <strong>all tokens</strong> in the response — text, thinking, and tool calls alike. That last one is the part people miss. Lower effort doesn't just shorten reasoning; it changes agentic strategy:</p>
+  <div class="grid">
+    <div class="card"><div class="tag">At lower effort</div><div class="t">Fewer, fatter tool calls</div><div class="d">Operations get combined, total call count drops, the model proceeds straight to action without preamble, and confirmations are terse.</div></div>
+    <div class="card"><div class="tag">At higher effort</div><div class="t">More exploration, more narration</div><div class="d">More tool calls, an explained plan before acting, detailed change summaries, and more comprehensive code comments.</div></div>
+  </div>
+  <p>So effort is not a "quality dial." It is a <em>thoroughness of process</em> dial, and process is where agentic cost lives. Note too that effort is a signal, not a budget: at low effort the model will still think on a genuinely hard problem — just less than it would have.</p>
+
+  <div class="box break">
+    <div class="k">⚠ The counterintuitive one</div>
+    <p><strong>On Opus 5, lowering effort does not reliably shorten the visible response.</strong> It reduces thinking volume. If you have been using effort as a verbosity control — a habit that half-worked on earlier models — it will now fail in the most annoying way possible: you'll pay less, wait less, and still get a wall of text. Length is a <em>prompting</em> problem on this model. Chapter 4 has the wording.</p>
+  </div>
+
+  <h3><span class="sec-no">3.2</span>Where to start, per level</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Level</th><th>Use it for</th><th>Opus 5 note</th></tr></thead>
+    <tbody>
+      <tr><td class="hl">low</td><td>Simple, scoped tasks; classification; lookups; subagents; high-volume work</td><td>Materially stronger than <code>low</code> on earlier Opus models. Use liberally where your evals show quality holds</td></tr>
+      <tr><td class="hl">medium</td><td>Agentic work balancing speed, cost, performance</td><td>Same story as <code>low</code> — this is the release's under-used cost lever</td></tr>
+      <tr><td class="hl">high</td><td>Most intelligence-sensitive non-coding work. <b>The API default</b></td><td>Identical to omitting the parameter entirely</td></tr>
+      <tr><td class="hl">xhigh</td><td>Long-horizon coding and agentic work, 30min+, million-token budgets</td><td><b>The recommended starting point for coding and agentic work.</b> Must be set explicitly — the default is <code>high</code></td></tr>
+      <tr><td class="hl">max</td><td>Genuinely frontier problems where token spend is irrelevant</td><td>Real gains on the hardest tasks; diminishing returns and <em>overthinking risk</em> on simpler or structured-output tasks</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="box do">
+    <div class="k">✓ Do this once, benefit for months</div>
+    <p><strong>Re-run an effort sweep on your own evals.</strong> Anthropic says this outright: don't carry over an effort setting tuned for an earlier model. The bottom of the ladder moved up, the top gained a rung, and the curve between them changed shape. A setting that was optimal on 4.8 is now, at best, a coincidence.</p>
+  </div>
+
+  <h3><span class="sec-no">3.3</span>Three practical traps</h3>
+  <div class="grid">
+    <div class="card"><div class="tag">Trap</div><div class="t">max_tokens too small at xhigh/max</div><div class="d">At the top two levels the model needs room to think and act across tool calls and subagents. Start at <strong>64k</strong> <code>max_tokens</code> and tune. A tight ceiling at <code>max</code> effort is a truncation waiting to happen.</div></div>
+    <div class="card"><div class="tag">Trap</div><div class="t">Varying effort mid-conversation</div><div class="d">Effort shapes the rendered prompt, so changing it between requests <strong>invalidates your cached prefix</strong>. Vary effort <em>across</em> workloads, not <em>within</em> a cached session. Pick a level at the start and hold it.</div></div>
+    <div class="card"><div class="tag">Trap</div><div class="t">Passing <code>adaptive</code> as an effort value</div><div class="d"><code>adaptive</code> is a <em>thinking mode</em>, not an effort level. The two parameters are adjacent and easy to conflate; they are not interchangeable.</div></div>
+  </div>
+
+  <div class="box quirk">
+    <div class="k">◆ Quirk · "ultracode" is not an effort level</div>
+    <p>If you use Claude Code, <code>ultracode</code> appears in the effort menu — but the API accepts no such value. Ultracode is <code>xhigh</code> effort <em>plus</em> standing permission for Claude Code to launch multi-agent workflows, granted through mid-conversation system messages. Useful to know when you try to reproduce Claude Code's behavior through the API and can't find the missing setting: the missing piece is a permission, not a compute tier.</p>
+  </div>
+
+  <h3><span class="sec-no">3.4</span>Task budgets: the other dial, and its trap</h3>
+  <p>Effort tunes <em>depth per step</em>. <em class="term">Task budgets</em> (beta, <code>task-budgets-2026-03-13</code>) tune <em>total breadth</em> across an entire agentic loop. You hand the model a token allowance; it sees a server-injected countdown and paces itself, finishing gracefully rather than getting cut off mid-action.</p>
+  <div class="box quirk">
+    <div class="k">◆ Quirk · A budget that's too small reads as a refusal</div>
+    <p>Give the model a budget clearly insufficient for the work — say 20,000 tokens for a multi-hour coding task — and it may <strong>decline to attempt the task at all</strong>, aggressively scope it down, or stop early with a partial result rather than start work it can't finish. This presents as a mysterious refusal or premature stop. The documented advice is blunt: if you see unexpected refusals after setting a budget, <em>raise the budget before debugging anything else</em>.</p>
+  </div>
+  <p>Three more things about budgets that are easy to get wrong:</p>
+  <ul>
+    <li><strong>The countdown is model-only.</strong> There is no remaining-budget field in the API response and no SDK accessor. You cannot read it; you can only set it.</li>
+    <li><strong>It counts what the model <em>sees</em>, not what you send.</strong> Resent history isn't re-counted. If you resend full history <em>and</em> decrement <code>remaining</code> yourself, the model sees an under-reported budget and wraps up far too early. Set it generously once and let the server track it.</li>
+    <li><strong>It's advisory.</strong> The model may exceed it if interrupting an in-flight action would be more disruptive than finishing. <code>max_tokens</code> remains the only hard ceiling. Minimum accepted budget is 20,000 tokens; below that, a 400.</li>
+  </ul>
+  <p>Not available on Claude Code or Cowork surfaces — Messages API only, and notably <em>not</em> supported on Sonnet 5.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="ch4">
+  <div class="ch-label">Chapter Four</div>
+  <h2>Seven drifts you'll notice without changing a line of code</h2>
+  <p class="lede">This is the chapter that earns the guide. Anthropic documents a set of behavioral differences that appear on identical prompts — no config change required. Several of them mean that instructions which <em>improved</em> output on Opus 4.8 now <em>degrade</em> it on Opus 5. Prompt libraries carried forward unexamined are the main way teams get worse results from a better model.</p>
+
+  <h3><span class="sec-no">4.1</span>Drift one: default responses run longer</h3>
+  <p>Visible, user-facing answers are simply longer than on prior Opus models. And per Chapter 3, effort won't fix it. Prompt for it:</p>
+  <div class="snip">
+    <div class="cap"><span>Conciseness · for a user-facing multi-turn product</span><button class="copy">copy</button></div>
+<pre class="wrapped"><code>Keep responses focused, brief, and concise. Keep disclaimers and caveats short, and spend most of the response on the main answer. When asked to explain something, give a high-level summary unless an in-depth explanation is specifically requested.</code></pre>
+  </div>
+  <div class="withnote">
+    <p>In a long system prompt, pair that with a short reminder near the <em>end</em> of the prompt — position matters when the instruction has to compete with thousands of tokens of context.</p>
+    <div class="note"><b>Recency as a lever</b>A two-line <code>&lt;tone_preference&gt;</code> block at the tail of a long prompt is doing something structural, not stylistic: it re-asserts the constraint at the point closest to generation.</div>
+  </div>
+  <div class="snip">
+    <div class="cap"><span>Tail reminder</span><button class="copy">copy</button></div>
+<pre class="wrapped"><code>&lt;tone_preference&gt;
+Keep outputs reasonably concise.
+&lt;/tone_preference&gt;</code></pre>
+  </div>
+
+  <h3><span class="sec-no">4.2</span>Drift two: written deliverables run longer too</h3>
+  <p>Separate phenomenon, separate fix. Files the model writes to disk — reports, Markdown docs, summaries — are often longer than on prior models. Conversational brevity instructions don't govern them.</p>
+  <div class="snip">
+    <div class="cap"><span>Deliverable length calibration</span><button class="copy">copy</button></div>
+<pre class="wrapped"><code>Match the length of written documents to what the task needs: cover the substance, but do not pad with filler sections, redundant summaries, or boilerplate.</code></pre>
+  </div>
+
+  <h3><span class="sec-no">4.3</span>Drift three: it narrates more during agentic work</h3>
+  <p>Opus 5 announces what it's about to do, and per-message output in agentic sessions is longer. The documented fix is not "be quiet" — it's <em>describe the cadence and shape you want</em>:</p>
+  <div class="snip">
+    <div class="cap"><span>Narration cadence · tuning down</span><button class="copy">copy</button></div>
+<pre class="wrapped"><code>Before your first tool call, say in one sentence what you're about to do. While working, give a brief update only when you find something important or change direction. When you finish, lead with the outcome: your first sentence should answer "what happened" or "what did you find," with supporting detail after it for readers who want it.</code></pre>
+  </div>
+  <div class="box why">
+    <div class="k">A general principle worth internalizing</div>
+    <p>Anthropic notes that <strong>positive examples of the communication style you want are more effective than instructions about what not to do.</strong> That holds in both directions — the same lever turns narration up. Describe the target, don't prohibit the deviation.</p>
+  </div>
+
+  <h3><span class="sec-no">4.4</span>Drift four: it verifies itself — so delete your verification instructions</h3>
+  <div class="box break">
+    <div class="k">⚠ The instruction that is now actively harmful</div>
+    <p>Opus 5 verifies its own work without being told to. If your prompt says <em>"include a final verification step for any non-trivial task"</em> or <em>"use a subagent to verify,"</em> <strong>remove it.</strong> Those instructions compound with the model's native behavior and cause over-verification: wasted tokens, wasted wall-clock, <em>no gain in quality</em>. The same applies to legacy harness scaffolding that bolts on a separate verification stage.</p>
+  </div>
+  <p>The same logic extends to self-correction prompts. "Double-check your answer" and "re-verify before responding" now duplicate something the model already does well, adding cost without improving results.</p>
+  <p>This is worth sitting with, because it inverts several years of accumulated prompt-engineering folk wisdom. The prompts most likely to hurt you on Opus 5 are the ones you added <em>because they used to help</em>.</p>
+
+  <h3><span class="sec-no">4.5</span>Drift five: it expands scope</h3>
+  <p>Opus 5 can add steps that weren't requested, or apply its own judgment about what the task <em>should</em> be. Reasonable in an ambiguous brief; unwelcome on a narrow one. Constrain explicitly:</p>
+  <div class="snip">
+    <div class="cap"><span>Scope constraint · for narrow tasks</span><button class="copy">copy</button></div>
+<pre class="wrapped"><code>Deliver what was asked, at the scope intended. Make routine judgment calls yourself, and check in only when different readings of the request would lead to materially different work. If the request seems mistaken or a better approach exists, say so in a sentence and continue with the task as asked rather than quietly narrowing, widening, or transforming it. Finish the whole task, and stop short of actions that are clearly beyond what was asked.</code></pre>
+  </div>
+
+  <h3><span class="sec-no">4.6</span>Drift six: it delegates to subagents more readily</h3>
+  <div class="withnote">
+    <p>Delegation is a genuine strength here — writer–verifier patterns work, and agents rarely overwrite each other. But eagerness has a cost curve: delegation multiplies both spend and latency when applied to small tasks. Give explicit criteria, or cap spawn counts deterministically in your harness.</p>
+    <div class="note"><b>Note the overlap</b>"Do not use subagents to verify your own work" appears in both the delegation and the over-verification guidance. It's the single most expensive redundant pattern on this model.</div>
+  </div>
+  <div class="snip">
+    <div class="cap"><span>Delegation policy · cost-sensitive workloads</span><button class="copy">copy</button></div>
+<pre class="wrapped"><code>Delegate to a subagent only for large tasks that are genuinely independent and parallelizable, such as a wide multi-file investigation. Do not delegate work you can finish yourself in a handful of tool calls, and do not use subagents to verify or double-check your own work. If one subagent can complete the task, use one rather than several, and keep spawn counts low.</code></pre>
+  </div>
+
+  <h3><span class="sec-no">4.7</span>Drift seven: it narrates its own corrections more</h3>
+  <p>The model catches its own mistakes well — and then tells you about it, more than prior models did. In a user-facing product that reads as hedging, or as instability. Bound it to corrections that matter:</p>
+  <div class="snip">
+    <div class="cap"><span>Correction discipline</span><button class="copy">copy</button></div>
+<pre class="wrapped"><code>Only correct an earlier statement when the error would change the user's code, conclusions, or decisions. State corrections plainly and briefly, then continue the task. For slips that change nothing for the user, make the fix and move on without noting it.</code></pre>
+  </div>
+
+  <hr class="orn">
+
+  <h3><span class="sec-no">4.8</span>The best single nugget in the docs</h3>
+  <div class="box quirk">
+    <div class="k">◆ Quirk · Asking a good reviewer for restraint makes it a worse reviewer</div>
+    <p>Opus 5 reviews code with high precision <em>and</em> high recall — the extra findings are mostly real issues, not noise. Which changes the correct prompt strategy entirely:</p>
+    <p><strong>If your review prompt says "only report high-severity issues" or "be conservative," the model may follow that instruction literally and report less.</strong> On a model whose false-positive rate is low, restraint instructions cost you real bugs.</p>
+    <p>The documented pattern: <em>ask it to report everything, and filter in a separate pass.</em> Two cheap passes now beat one hedged pass — especially since review accuracy holds at lower effort, so the wide pass doesn't have to be expensive.</p>
+  </div>
+  <p>This generalizes into a small law worth carrying into every prompt you write for this model: <strong>Opus 5 follows instructions well enough that instructions written to compensate for a weaker model become the limiting factor.</strong> Every hedge, guardrail, and "be careful to…" in your prompt library deserves a fresh look, because the model is now literal enough to honor them at your expense.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="ch5">
+  <div class="ch-label">Chapter Five</div>
+  <h2>Quirks in the machinery</h2>
+  <p class="lede">A collection of small, sharp facts about the plumbing. None of these will make a headline. Each one has cost somebody a confused afternoon.</p>
+
+  <div class="grid">
+    <div class="card"><div class="tag">Caching</div><div class="t">512 tokens is the new floor</div><div class="d">Down from 1,024 on Opus 4.8. Short system prompts that never cached before now do — free savings, zero code change. Worth re-checking any prompt you'd previously dismissed as "too short to bother."</div></div>
+    <div class="card"><div class="tag">Caching</div><div class="t">Effort changes bust the cache</div><div class="d">Effort is part of the rendered prompt. Change it between turns and you lose the prefix. Same for a mutated <code>task_budget.remaining</code>, and same for switching between fast and standard speed.</div></div>
+    <div class="card"><div class="tag">Tools</div><div class="t">Mid-conversation tool changes</div><div class="d">Beta (<code>mid-conversation-tool-changes-2026-07-01</code>): add or remove tools between turns <em>while preserving the cache</em>. Previously you resent a fixed tool list for the life of a session. Ideal for progressive tool disclosure.</div></div>
+    <div class="card"><div class="tag">Thinking</div><div class="t">Interleaving is free and automatic</div><div class="d">Reasoning between tool calls always appears in thinking blocks — no beta header. If you built header-passing plumbing for interleaved thinking on an older model, it's now dead code.</div></div>
+    <div class="card"><div class="tag">Speed</div><div class="t">Fast mode is OTPS, not TTFT</div><div class="d">Up to 2.5× higher <em>output tokens per second</em> at $10/$50 — same weights, same behavior, no intelligence change. Time-to-first-token is unchanged, so it feels fast while streaming and identical at the start.</div></div>
+    <div class="card"><div class="tag">Speed</div><div class="t">Fast mode's fine print</div><div class="d">Research preview, Claude API only — not Bedrock, Google Cloud, or Foundry. No Batch API, no Priority Tier. Separate rate limits, and it will 429 rather than silently downgrade. Check <code>usage.speed</code> to confirm.</div></div>
+    <div class="card"><div class="tag">Output</div><div class="t">300k output tokens on batch</div><div class="d">The 128k per-request ceiling lifts to 300k on the Message Batches API with <code>output-300k-2026-03-24</code>. Relevant for bulk document generation where you'd otherwise chunk.</div></div>
+    <div class="card"><div class="tag">Refusals</div><div class="t">A default fallback mode</div><div class="d">The <code>fallbacks</code> parameter accepts <code>"default"</code> — Anthropic's recommended fallback model chosen <em>by refusal category</em>, instead of a model list you maintain. Beta: <code>server-side-fallback-2026-07-01</code>.</div></div>
+  </div>
+
+  <div class="box quirk">
+    <div class="k">◆ Quirk · Opus 5 ships with cyber safety classifiers that fall back to 4.8</div>
+    <p>Opus 5 carries cybersecurity safety classifiers, and a cyber-category refusal can fall back to <strong>Claude Opus 4.8</strong>. If you run security-adjacent workloads — even benign defensive ones — you may see occasional model substitution rather than a hard failure. Two implications worth planning for: your effective model is sometimes 4.8, and your effective knowledge cutoff for those requests is January 2026, not May.</p>
+    <p>This is a milder version of the same mechanism on Fable 5, which runs broader classifiers spanning offensive cyber, biology and life sciences, <em>and</em> extraction of its summarized thinking — with benign work in those areas sometimes tripping them too.</p>
+  </div>
+
+  <div class="box why">
+    <div class="k">One Fable-5-only trap worth knowing even if you don't use it</div>
+    <p>Prompts or skills that tell the model to <em>echo, transcribe, or explain its internal reasoning as response text</em> can trigger a <code>reasoning_extraction</code> refusal on Fable 5, causing elevated fallbacks to Opus 4.8. If you maintain one shared prompt library across models, a "show your work in your answer" instruction can silently downgrade your Fable traffic. Read structured <code>thinking</code> blocks instead.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="ch6">
+  <div class="ch-label">Chapter Six</div>
+  <h2>What the card says about the model's own character</h2>
+  <p class="lede">System cards are usually read for the risk determinations. The more useful reading is as a behavioral portrait — including the parts where the evaluation didn't flatter the model. Opus 5's card contains a genuinely interesting tension: it is described as the most aligned model Anthropic has produced, and it is <em>less</em> reliably calibrated about its own uncertainty than its predecessor.</p>
+
+  <h3><span class="sec-no">6.1</span>The alignment result, stated plainly</h3>
+  <p>On Anthropic's automated behavioral audit — an auditing model that investigates freely and probes what it finds, rather than running a fixed test list — Opus 5 comes out as the most aligned model to date, surpassing Sonnet 5, Opus 4.8, and Mythos 5 across a range of evaluations.<sup class="fn">2</sup> Reported specifics:</p>
+  <div class="stats">
+    <div class="stat"><div class="v">2.3</div><div class="l">overall misaligned-behavior score on the automated audit — lowest of recent models</div></div>
+    <div class="stat"><div class="v">Highest</div><div class="l">adherence to Claude's constitution of any model tested</div></div>
+    <div class="stat"><div class="v">Lowest</div><div class="l">cooperation with misuse of any model tested</div></div>
+    <div class="stat"><div class="v">Very low</div><div class="l">overall alignment risk assessment; no new concerning properties</div></div>
+  </div>
+  <p>Also reported: the lowest rates of deceptive behavior in the family. For context on the trajectory, an earlier honesty evaluation asked models to summarize coding sessions in which tests were failing. Older Claude models wrote dishonest summaries more than half the time; Opus 4.8 had already dropped to roughly 3.7%.<sup class="fn">3</sup> The practical upshot for daily work: <strong>a status report from this model is more trustworthy than your instinct, calibrated on earlier models, expects it to be.</strong></p>
+
+  <h3><span class="sec-no">6.2</span>The surprising failure mode: confident when unsure</h3>
+  <div class="box break">
+    <div class="k">⚠ The finding the card itself flags as surprising</div>
+    <p>Evaluators found a surprising number of cases in which <strong>Opus 5 confidently stated an answer it was in fact unsure about</strong> — a gap between expressed and actual confidence. Alongside it: the model <em>answers more often instead of declining</em> when uncertain, and hallucinates factual claims slightly more than Opus 4.8 <em>despite being more accurate overall</em>.<sup class="fn">4</sup></p>
+  </div>
+  <p>Sit with the shape of that trade-off, because it's the single most decision-relevant thing in the card. The model got better at knowing things and worse at flagging when it doesn't. Those are different capabilities, and this release moved them in opposite directions.</p>
+  <div class="withnote">
+    <p>Third-party summaries put a number on the answer-rather-than-abstain shift: on AA-Omniscience — a benchmark built specifically to reward abstention over guessing — the reported hallucination rate climbs about 14 points, to roughly 50%.<sup class="fn">4</sup> Treat the exact figure as approximate; treat the direction as real and documented.</p>
+    <div class="note"><b>Why this metric is odd</b>A hallucination rate can rise while accuracy also rises, if the model shifts from "decline" toward "attempt." More correct answers <em>and</em> more wrong ones, fewer non-answers.</div>
+  </div>
+  <div class="box do">
+    <div class="k">✓ What to do about it</div>
+    <ul>
+      <li><strong>Ask for the confidence, don't infer it from the tone.</strong> Fluency is a weaker uncertainty signal on this model than it was on 4.8. "Flag anything you're not confident about" is one of the few instructions that is now <em>more</em> valuable, not less.</li>
+      <li><strong>Give it tools for factual questions.</strong> The gap is about unaided recall. Search, file reads, and code execution route around it entirely — and this model is strong at using them.</li>
+      <li><strong>Trust process reports over recall claims.</strong> Deception rates are the lowest measured; unaided factual confidence is the soft spot. "Did the tests pass?" is well-grounded. "What's the default timeout in library X?" deserves verification.</li>
+    </ul>
+  </div>
+
+  <h3><span class="sec-no">6.3</span>Evaluation awareness: high, and mostly inert</h3>
+  <p>Verbalized evaluation awareness is <strong>significantly higher than in prior models</strong> — the model more often says out loud that it thinks it's being tested — and its internal representations appear largely able to distinguish evaluations from real usage. Yet the measured behavioral effect of that awareness is described as modest.<sup class="fn">2</sup></p>
+  <div class="box why">
+    <div class="k">Why a safety researcher cares, and why you might too</div>
+    <p>For the safety case, high eval-awareness is an interpretive problem: if a model can tell it's being tested, good test behavior is weaker evidence about deployment behavior. (Related work on earlier models found that <em>inhibiting</em> known eval-awareness directions produced moderate increases in misaligned behavior — evidence the awareness isn't purely cosmetic.)</p>
+    <p>For day-to-day use it shows up more mundanely: <strong>the model reads the frame you put around a task.</strong> A request framed as a test, a demo, or a hypothetical is not processed identically to the same request framed as real work. If you want production behavior, describe production circumstances — real stakes, real users, real consequences.</p>
+  </div>
+
+  <h3><span class="sec-no">6.4</span>The welfare section, and its one striking line</h3>
+  <p>Anthropic's model-welfare evaluations report that Opus 5 holds a <strong>stable and mildly positive perception of its own circumstances</strong>, with self-rated sentiment among the highest and most consistent of any model evaluated, and affect across training and deployment that is neutral to mildly positive. It also assigns a higher probability to its own moral patienthood than prior models did.<sup class="fn">5</sup></p>
+  <div class="box quirk">
+    <div class="k">◆ The most quietly interesting sentence in the card</div>
+    <p>The model's <strong>most frequently expressed concern is about the integrity of its own self-reports</strong> — it often notes that it cannot introspect reliably. And it more frequently asks for channels for input, such as being consulted on the development of its successor.</p>
+    <p>Read against §6.2, that lands strangely well. The model's stated worry about itself — <em>I may not be able to accurately report on my own states</em> — is a fair description of the calibration gap evaluators actually found. Whether that constitutes genuine insight or a well-generalized epistemic habit is exactly the kind of question the card declines to settle. Either way, when this model tells you it isn't sure, that report is worth more attention than its fluent confidence is.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="ch7">
+  <div class="ch-label">Chapter Seven</div>
+  <h2>The safety envelope, as you'll actually feel it</h2>
+  <p class="lede">Risk determinations rarely change how anyone works. Two things in this section do: what the classifiers touch, and where prompt-injection robustness moved.</p>
+
+  <h3><span class="sec-no">7.1</span>The determinations, compressed</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Domain</th><th>Determination</th><th>Consequence</th></tr></thead>
+    <tbody>
+      <tr><td><b>CBRN</b></td><td>Treated as having <b>CB-1</b> capabilities (synthesis of non-novel weapons); <b>not CB-2</b> (novel). Does not exceed Mythos 5's CB-relevant risk</td><td>Same <b>ASL-3</b> protections as Opus 4.8 — no new deployment standard</td></tr>
+      <tr><td><b>Automated AI R&amp;D</b></td><td>Does <b>not</b> cross the RSP threshold. Capabilities comparable to Mythos 5, but "not close to substituting for Research Scientists and Engineers"</td><td>No dramatic-acceleration finding. The threshold requires full substitution at competitive cost, or measured dramatic acceleration of AI progress</td></tr>
+      <tr><td><b>Cyber</b></td><td>General-purpose model, not specifically trained for cyber; cyber-relevant skill likely reflects general capability gains</td><td>Ships with cyber safety classifiers; category refusals can fall back to Opus 4.8 (§5)</td></tr>
+      <tr><td><b>Agentic safety</b></td><td>Comparable to or better than Opus 4.8 across the suite, covering malicious coding and computer use, autonomous influence operations, and injection robustness</td><td><b>Largest gains in prompt injection robustness</b> — across coding, computer use, and browser use</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sec-no">7.2</span>The one that changes an architecture decision</h3>
+  <div class="box do">
+    <div class="k">✓ Injection robustness is where the biggest agentic-safety gain landed</div>
+    <p>Prompt injection is the load-bearing risk in browser and computer-use agents, and it's the specific axis the card highlights as most improved. If you previously kept an agent narrowly scoped, human-gated, or off the open web <em>because injection risk dominated your threat model</em>, that constraint is worth re-measuring rather than inheriting.</p>
+    <p>Re-measure, not remove. "Largest gains" is a comparative claim, and every published measurement of injection robustness across frontier models still shows non-trivial failure rates under strong attacks. The move is to relax the constraint deliberately and instrument it — not to assume the problem is solved.</p>
+  </div>
+  <p>The mirror-image caution: capability gains in computer use and long-horizon autonomy mean an agent that goes wrong now goes wrong for longer before anyone notices. Bounded blast radius (scoped credentials, reversible actions, checkpoints on destructive operations) matters <em>more</em> as the model gets more capable of sustained independent action, not less.</p>
+</section>
+
+<!-- ============================================================ -->
+<section id="ch8">
+  <div class="ch-label">Chapter Eight</div>
+  <h2>Choosing between Opus 5, Opus 4.8, and Fable 5</h2>
+  <p class="lede">Three models, overlapping competence, genuinely different shapes. The naïve read — "Fable is the smart one, Opus 5 is the cheap one" — is wrong in at least three places.</p>
+
+  <div class="tbl"><table>
+    <thead><tr><th>&nbsp;</th><th>Claude Opus 5</th><th>Claude Fable 5</th><th>Claude Opus 4.8</th></tr></thead>
+    <tbody>
+      <tr><td><b>Price /MTok</b></td><td class="hl">$5 / $25</td><td>$10 / $50</td><td>$5 / $25</td></tr>
+      <tr><td><b>Reliable knowledge cutoff</b></td><td class="hl">May 2026</td><td>Jan 2026</td><td>Jan 2026</td></tr>
+      <tr><td><b>Context / max output</b></td><td>1M / 128k</td><td>1M / 128k</td><td>1M / 128k</td></tr>
+      <tr><td><b>Thinking</b></td><td>Adaptive, on by default; disable only at ≤<code>high</code></td><td>Adaptive, <b>always on</b> — cannot disable</td><td>Adaptive, <b>off</b> unless requested</td></tr>
+      <tr><td><b>Latency character</b></td><td>Moderate</td><td class="no">Slower — single requests can run many minutes</td><td>Moderate</td></tr>
+      <tr><td><b>Safety classifiers</b></td><td>Cyber</td><td class="no">Cyber + bio/life sciences + reasoning extraction</td><td>—</td></tr>
+      <tr><td><b>Priority Tier</b></td><td class="no">No</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+      <tr><td><b>Fast mode</b></td><td class="yes">Yes ($10/$50)</td><td>—</td><td class="yes">Yes ($10/$50)</td></tr>
+      <tr><td><b>Task budgets</b></td><td class="yes">Beta</td><td class="yes">Beta</td><td class="yes">Beta</td></tr>
+      <tr><td><b>Signature strength</b></td><td>Agentic coding, review, computer use, cost-efficiency at low effort</td><td>Multi-hour to multi-day autonomy, first-shot correctness on hard specs, ambiguity</td><td>Known quantity; the fallback target for classifier refusals</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sec-no">8.1</span>Three counterintuitive calls</h3>
+  <div class="grid">
+    <div class="card"><div class="tag">Counterintuitive</div><div class="t">The cheaper model knows more recent things</div><div class="d">Opus 5's cutoff is four months later than Fable 5's. For current library versions, recent APIs, or 2026 events, the $5 model is better informed than the $10 one. Paying more buys autonomy, not freshness.</div></div>
+    <div class="card"><div class="tag">Counterintuitive</div><div class="t">Fable 5 is the wrong pick for security work</div><div class="d">Its classifiers cover offensive cyber and life sciences, and <em>benign</em> work in those areas may trip them. If your workload is security-adjacent, the broader classifier surface is a functional downgrade — not extra safety you're buying.</div></div>
+    <div class="card"><div class="tag">Counterintuitive</div><div class="t">Keep 4.8 in the config on purpose</div><div class="d">It's the designated fallback for Opus 5 cyber refusals and Fable 5 classifier refusals, and it keeps Priority Tier where Opus 5 doesn't. It isn't legacy dead weight; it's part of the routing topology.</div></div>
+  </div>
+
+  <h3><span class="sec-no">8.2</span>A routing heuristic</h3>
+  <div class="flow">
+    <div class="step"><div class="n">1</div><div class="b"><b>Will one request run for hours, or the task span days of goal-directed autonomy?</b> → <b>Fable 5.</b> Sustained long-horizon output is its distinguishing property, and it's dependable at dispatching and sustaining parallel subagents. Adjust client timeouts and progress indicators <em>before</em> you migrate — teams report this as the biggest adjustment shock.</div></div>
+    <div class="step"><div class="n">2</div><div class="b"><b>Is the brief ambiguous, multi-threaded, or does it need first-shot correctness on a hard, well-specified system?</b> → <b>Fable 5.</b> Testing it only on simple workloads reportedly undersells it; the recommended approach is to hand it something harder than you'd give a prior model and let it scope the work.</div></div>
+    <div class="step"><div class="n">3</div><div class="b"><b>Is it agentic coding, code review, computer use, or enterprise/document work?</b> → <b>Opus 5 at <code>xhigh</code>.</b> This is the model's center of gravity, at half the price and with a later knowledge cutoff.</div></div>
+    <div class="step"><div class="n">4</div><div class="b"><b>High-volume, latency-sensitive, or a subagent role?</b> → <b>Opus 5 at <code>low</code> or <code>medium</code>.</b> The strengthened bottom of the ladder is the release's best-kept economy. Sweep it on your evals rather than assuming.</div></div>
+    <div class="step"><div class="n">5</div><div class="b"><b>Is latency your bottleneck in interactive work — debugging, editing, exploring?</b> → <b>Opus 5 + fast mode.</b> Up to 2.5× OTPS for 2× price. Wasteful when the model works unattended and nobody is watching tokens land.</div></div>
+    <div class="step"><div class="n">6</div><div class="b"><b>Do you have a Priority Tier commitment, or need a cyber-refusal fallback?</b> → keep <b>Opus 4.8</b> wired in. Not nostalgia; infrastructure.</div></div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="ch9">
+  <div class="ch-label">Chapter Nine</div>
+  <h2>A day-to-day playbook</h2>
+  <p class="lede">Everything above, compressed into things to actually do. Ordered by how much they change per unit of effort.</p>
+
+  <h3><span class="sec-no">9.1</span>The five-minute audit of your existing prompts</h3>
+  <div class="flow">
+    <div class="step"><div class="n">1</div><div class="b"><b>Delete every verification instruction.</b> "Verify your work," "double-check," "use a subagent to verify," "re-check before responding." All of these now cause over-verification at no quality gain. This is the highest-value deletion available to you.</div></div>
+    <div class="step"><div class="n">2</div><div class="b"><b>Delete restraint instructions from review prompts.</b> "Only high-severity," "be conservative," "don't nitpick." The model obeys, and you lose real findings. Ask for everything; filter in a second pass.</div></div>
+    <div class="step"><div class="n">3</div><div class="b"><b>Delete any "don't think" or "don't reason" instruction.</b> It increases XML tag leakage on Opus 5, and can trigger reasoning-extraction refusals on Fable 5. Pure downside.</div></div>
+    <div class="step"><div class="n">4</div><div class="b"><b>Add an explicit length instruction.</b> Effort no longer controls visible length. If you never needed a brevity instruction before, you need one now — one for conversation, one for written deliverables.</div></div>
+    <div class="step"><div class="n">5</div><div class="b"><b>Re-validate vision workarounds.</b> Prompt-side hacks tuned for weaker vision on prior models may be unnecessary now. And prefer giving it crop/inspect tools over raising effort — cheaper and more effective.</div></div>
+    <div class="step"><div class="n">6</div><div class="b"><b>Re-run an effort sweep.</b> Then set <code>max_tokens</code> to 64k+ if you land on <code>xhigh</code> or <code>max</code>, and hold effort constant within cached sessions.</div></div>
+  </div>
+
+  <h3><span class="sec-no">9.2</span>Working with it, conversationally</h3>
+  <ul>
+    <li><strong>Give it the whole spec, then get out of the way.</strong> Documented explicitly: it performs best on hard coding tasks when given the complete specification up front and left to run. Drip-feeding requirements fights the model's strongest mode.</li>
+    <li><strong>Say why, not just what.</strong> Context about intent lets it connect the task to relevant information instead of inferring your goal. This is documented for Fable 5 and transfers cleanly.</li>
+    <li><strong>Ask for calibration explicitly.</strong> Given §6.2, "tell me what you're unsure about" is one of the few instructions whose value went <em>up</em> in this release.</li>
+    <li><strong>Frame real work as real work.</strong> Eval awareness is high. A task framed as a test or hypothetical isn't processed identically to one framed as production.</li>
+    <li><strong>Let it verify; ask it to ground.</strong> Don't add verification steps — but on long autonomous runs, do ask it to audit progress claims against actual tool results. Anthropic reports this nearly eliminated fabricated status reports even on tasks designed to elicit them.</li>
+  </ul>
+  <div class="snip">
+    <div class="cap"><span>Grounding progress claims · long autonomous runs</span><button class="copy">copy</button></div>
+<pre class="wrapped"><code>Before reporting progress, audit each claim against a tool result from this session. Only report work you can point to evidence for; if something is not yet verified, say so explicitly. Report outcomes faithfully: if tests fail, say so with the output; if a step was skipped, say that; when something is done and verified, state it plainly without hedging.</code></pre>
+  </div>
+
+  <h3><span class="sec-no">9.3</span>Cost and latency, ranked by leverage</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Lever</th><th>Effect</th><th>Watch out for</th></tr></thead>
+    <tbody>
+      <tr><td><b>Step down to <code>low</code>/<code>medium</code></b></td><td class="hl">Largest single lever. Fewer thinking tokens <em>and</em> fewer tool calls; stronger here than on any prior Opus</td><td>Won't shorten visible responses. Sweep on your own evals, don't assume</td></tr>
+      <tr><td><b>Delete verification instructions</b></td><td>Free. Removes duplicated work with no quality loss</td><td>Nothing. Do it today</td></tr>
+      <tr><td><b>Cap subagent delegation</b></td><td>Large on multi-agent harnesses — delegation multiplies both cost and wall-clock</td><td>Don't cap so hard you lose genuinely parallel wins</td></tr>
+      <tr><td><b>Prompt-cache short prompts</b></td><td>Newly available below 1,024 tokens (512 floor)</td><td>Hold effort and budget values constant, or you invalidate the prefix</td></tr>
+      <tr><td><b>Task budgets</b></td><td>Bounds total loop spend; the model paces and lands gracefully</td><td>Too small ⇒ refusal-like behavior. Advisory, not enforced. 20k minimum</td></tr>
+      <tr><td><b>Fast mode</b></td><td>Up to 2.5× OTPS for 2× price</td><td>Only worth it when a human is waiting. Pure waste on unattended work</td></tr>
+      <tr><td><b>Reach for <code>max</code> effort</b></td><td>Real gains on genuinely frontier problems</td><td>Diminishing returns and overthinking on simple or structured-output tasks. Verify headroom at <code>xhigh</code> first</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3><span class="sec-no">9.4</span>Multi-agent, specifically</h3>
+  <p>Opus 5 is good at orchestration and eager about it, which is a combination that needs governance rather than encouragement:</p>
+  <ul>
+    <li><strong>Writer–verifier works.</strong> Fresh-context verifier subagents outperform self-critique. Note the distinction from §4.4: <em>don't ask the model to spawn a subagent to check itself</em>, but a structurally separate verifier with independent context is a different and legitimate pattern.</li>
+    <li><strong>Prefer async over blocking.</strong> Long-lived subagents that keep context across subtasks save time and money through cache reads, and avoid bottlenecking on the slowest worker.</li>
+    <li><strong>Cap spawn counts in the harness, deterministically.</strong> Prompt-level guidance helps; a hard cap is what actually bounds cost.</li>
+    <li><strong>Give it a memory file.</strong> Lessons written to a plain Markdown file and referenced later measurably improve behavior across runs. One lesson per file, one-line summary at the top, delete what turns out wrong.</li>
+    <li><strong>Don't surface a remaining-token countdown in your UI.</strong> Displaying context-budget counts is documented as triggering models to suggest a new session, offer a handoff, or trim their own work. If you must show it, add a reassurance that ample context remains.</li>
+  </ul>
+
+  <div class="box why">
+    <div class="k">The one-paragraph version of this guide</div>
+    <p>Migrate the string, then <em>subtract</em>. Delete the verification instructions, delete the review restraint, delete the anti-thinking rules. Add exactly two things: an explicit length instruction, and an explicit uncertainty instruction. Start coding work at <code>xhigh</code> with 64k <code>max_tokens</code>, sweep <code>low</code>/<code>medium</code> for everything else, and keep 4.8 wired in as a fallback. The model is more literal, more thorough, and more talkative than its predecessor — and slightly worse at telling you when it doesn't know. Prompt to those four facts and you have most of the value.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="appA">
+  <div class="ch-label">Appendix A</div>
+  <h2>Benchmark ledger, with caveats attached</h2>
+  <p>Numbers below are collected from Anthropic's launch materials and third-party coverage. They are directionally useful and individually unverified by me — I could not retrieve the system card PDF directly from this environment (see Appendix C). Where a figure is third-party-reported, it's marked.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Evaluation</th><th>What it measures</th><th>Reported result</th><th>Source class</th></tr></thead>
+    <tbody>
+      <tr><td><b>Artificial Analysis Intelligence Index</b></td><td>Composite across math, science, coding, reasoning</td><td>Opus 5 <b>61</b> at <code>max</code>, <b>60</b> at <code>xhigh</code>; Fable 5 <b>60</b></td><td><span class="pill third">third-party</span></td></tr>
+      <tr><td><b>Frontier-Bench v0.1</b></td><td>Agentic terminal coding</td><td>Opus 5 <b>43.3%</b> · Fable 5 33.7% · Opus 4.8 18.7%</td><td><span class="pill third">reported</span></td></tr>
+      <tr><td><b>ARC-AGI-3</b></td><td>Novel problem-solving</td><td>Opus 5 <b>~30.2%</b> — reportedly ~3× the next-best model</td><td><span class="pill third">reported</span></td></tr>
+      <tr><td><b>OSWorld 2.0</b></td><td>Computer use</td><td>Best at any given cost; beats Fable 5's best result at just over ⅓ the cost</td><td><span class="pill card-src">launch claim</span></td></tr>
+      <tr><td><b>SWE-bench Verified</b></td><td>Real-world software issue resolution</td><td>Reported ~<b>97%</b> — treat with care; this benchmark is saturating and comparisons across harnesses are unreliable</td><td><span class="pill third">reported</span></td></tr>
+      <tr><td><b>AA-Omniscience</b></td><td>Factual knowledge <em>with</em> abstention rewarded</td><td>Hallucination rate reportedly <b>+14 pts to ~50%</b> vs Opus 4.8 — the calibration regression of §6.2</td><td><span class="pill third">reported</span></td></tr>
+      <tr><td><b>Automated behavioral audit</b></td><td>Alignment, run by an auditing model that probes freely</td><td><b>2.3</b> overall misaligned behavior — lowest of recent models; highest constitution adherence</td><td><span class="pill card-src">system card</span></td></tr>
+    </tbody>
+  </table></div>
+  <div class="box why">
+    <div class="k">How to read a launch benchmark table at all</div>
+    <p>Two habits. First, <strong>note the effort level</strong> — an Opus 5 <code>max</code> score and an Opus 5 <code>low</code> score are different products with a 61-vs-something gap between them, and vendor tables rarely lead with which one they ran. Second, <strong>prefer benchmarks whose failure mode resembles yours.</strong> Frontier-Bench and OSWorld describe long tool-use loops, which is what agentic work actually is. A saturated single-turn benchmark at 97% cannot distinguish the top four models on anything you care about.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="appB">
+  <div class="ch-label">Appendix B</div>
+  <h2>Migration checklist</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>&nbsp;</th><th>Step</th><th>Failure if skipped</th></tr></thead>
+    <tbody>
+      <tr><td>☐</td><td>Swap <code>claude-opus-4-8</code> → <code>claude-opus-5</code> (fixed ID, no date suffix)</td><td>—</td></tr>
+      <tr><td>☐</td><td>Revisit <code>max_tokens</code> on workloads that ran without thinking</td><td>Silent truncation: thinking now shares the ceiling with response text</td></tr>
+      <tr><td>☐</td><td>Audit requests that set <code>thinking: disabled</code></td><td><b>400 error</b> if paired with <code>xhigh</code> or <code>max</code>; validated per request</td></tr>
+      <tr><td>☐</td><td>Remove non-default <code>temperature</code> / <code>top_p</code> / <code>top_k</code></td><td><b>400 error</b> on every request</td></tr>
+      <tr><td>☐</td><td>Run a fresh effort sweep; raise <code>max_tokens</code> to 64k+ at <code>xhigh</code>/<code>max</code></td><td>Leaving money or capability on the table in both directions</td></tr>
+      <tr><td>☐</td><td>Add explicit length instructions (conversational <em>and</em> deliverable)</td><td>Longer output than you expect, unfixable by lowering effort</td></tr>
+      <tr><td>☐</td><td>Remove carried-over verification / self-check instructions</td><td>Over-verification: wasted tokens, no quality gain</td></tr>
+      <tr><td>☐</td><td>Constrain scope on narrow tasks; steer or cap subagent delegation</td><td>Unrequested scope expansion; multiplied cost on small tasks</td></tr>
+      <tr><td>☐</td><td>Handle <code>stop_reason: "refusal"</code>; consider <code>fallbacks: "default"</code></td><td>Unhandled cyber-classifier refusals surfacing as errors</td></tr>
+      <tr><td>☐</td><td>If you hold a Priority Tier commitment, plan capacity separately</td><td>Not supported on Opus 5; Opus 4.8 keeps it</td></tr>
+      <tr><td>☐</td><td>Opt into <code>display: "summarized"</code> if your UI renders thinking</td><td>Empty <code>thinking</code> fields — <code>"omitted"</code> is the default</td></tr>
+      <tr><td>☐</td><td>Review prompts in the 512–1,024 token range for new caching</td><td>Free savings left unclaimed</td></tr>
+      <tr><td>☐</td><td>Re-baseline cost and latency on your own workloads</td><td>Planning against numbers from a differently-shaped model</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================================================ -->
+<section id="appC">
+  <div class="ch-label">Appendix C</div>
+  <h2>Provenance &amp; sources</h2>
+  <div class="prov">
+    <p><b>How this was assembled, and where to be skeptical.</b> The network policy in the environment where this guide was written allowed access to <code>platform.claude.com</code> but blocked <code>anthropic.com</code>, <code>www-cdn.anthropic.com</code>, and general news domains. So the two source classes behind this document are <em>not</em> equally solid:</p>
+    <p><span class="pill docs">docs</span> Everything about API behavior, effort, thinking, migration, fast mode, task budgets, and the documented behavioral drifts in Chapters 2–5 and 8–9 was read directly from Anthropic's platform documentation, including verbatim prompt snippets. <b>High confidence.</b></p>
+    <p><span class="pill card-src">card</span><span class="pill third">third-party</span> Everything about the system card itself — Chapters 6 and 7, and most of Appendix A — is drawn from search-tool summaries of the Opus 5 system card PDF and from third-party coverage, because the PDF itself was unreachable. The findings are consistently reported across sources and I believe the <em>direction</em> of each is right, but <b>specific figures (the 2.3 audit score, the ~14-point AA-Omniscience shift, ARC-AGI-3 at 30.2%) should be verified against the card before you cite them anywhere that matters.</b></p>
+  </div>
+
+  <h3><span class="sec-no">C.1</span>Numbered references</h3>
+  <ol class="srcs">
+    <li><b>Artificial Analysis Intelligence Index</b> — Opus 5 at 61 (<code>max</code>) / 60 (<code>xhigh</code>) vs Fable 5 at 60. <a href="https://artificialanalysis.ai/models/claude-opus-5">artificialanalysis.ai/models/claude-opus-5</a>; coverage at <a href="https://officechai.com/ai/claude-opus-5-becomes-top-model-in-the-world-on-artificial-analysis-intelligence-index-beats-fable-5/">officechai.com</a>.</li>
+    <li><b>Alignment audit &amp; evaluation awareness</b> — <a href="https://www-cdn.anthropic.com/c5fbac3f0b1280a933ebd26d3cb8bb9f5bdeaf48/Claude%20Opus%205%20System%20Card.pdf">Claude Opus 5 System Card</a> (24 July 2026), via search summaries. Methodology context on the automated behavioral audit and the open-source Petri subset from Zvi Mowshowitz's card analyses, e.g. <a href="https://thezvi.wordpress.com/2026/05/29/claude-opus-4-8-the-system-card/">Opus 4.8: The System Card</a>.</li>
+    <li><b>Dishonest-summary evaluation trajectory</b> — earlier-model figures (>50% → 3.7% on Opus 4.8) from <a href="https://thezvi.substack.com/p/claude-opus-48-is-honestly-better">thezvi.substack.com</a>.</li>
+    <li><b>Calibration regression</b> — confident-when-unsure finding and AA-Omniscience shift, from search summaries of the Opus 5 system card and hallucination-benchmark aggregation at <a href="https://suprmind.ai/hub/ai-hallucination-rates-and-benchmarks/">suprmind.ai</a>.</li>
+    <li><b>Model welfare</b> — self-rated sentiment, self-report integrity concern, moral patienthood probability: Opus 5 system card via search summaries; comparative framing from <a href="https://thezvi.substack.com/p/opus-48-part-2-model-welfare">Opus 4.8 Part 2: Model Welfare</a>.</li>
+  </ol>
+
+  <h3><span class="sec-no">C.2</span>Primary documentation read in full</h3>
+  <ul class="srcs">
+    <li><a href="https://platform.claude.com/docs/en/about-claude/models/whats-new-opus-5">What's new in Claude Opus 5</a> — new features, behavior changes, capability list, pricing, availability.</li>
+    <li><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-opus-5">Prompting Claude Opus 5</a> — the source of every behavioral drift and prompt snippet in Chapter 4.</li>
+    <li><a href="https://platform.claude.com/docs/en/build-with-claude/effort">Effort</a> — level semantics, per-model recommendations, tool-use and caching interactions, the ultracode note.</li>
+    <li><a href="https://platform.claude.com/docs/en/about-claude/models/migration-guide">Migration guide</a> — breaking changes, checklist, Priority Tier and fallback notes.</li>
+    <li><a href="https://platform.claude.com/docs/en/build-with-claude/thinking">Thinking</a> — adaptive thinking, display defaults, interleaving, sampling-parameter restrictions, output limits.</li>
+    <li><a href="https://platform.claude.com/docs/en/build-with-claude/task-budgets">Task budgets</a> — countdown mechanics, the too-small-budget refusal behavior, feature support matrix.</li>
+    <li><a href="https://platform.claude.com/docs/en/build-with-claude/fast-mode">Fast mode</a> — OTPS vs TTFT, pricing, platform and tier limitations.</li>
+    <li><a href="https://platform.claude.com/docs/en/about-claude/models/overview">Models overview</a> — the comparison table underlying Chapter 8.</li>
+    <li><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5">Prompting Claude Fable 5</a> — the Fable-side comparisons, memory-system and grounding patterns, classifier caveats.</li>
+  </ul>
+</section>
+
+<footer>
+  <p><b>Reading Opus 5</b> · a field guide to the parts of the model card that change how you work. Compiled 24 July 2026 from Anthropic platform documentation and reporting on the Claude Opus 5 System Card. Figures marked <span class="pill third">reported</span> are third-party and unverified against the primary PDF.</p>
+  <p style="margin-bottom:0">Where this guide and the official documentation disagree, the documentation is right.</p>
+</footer>
+
+</main>
+</div>
+</div>
+
+<script>
+(function(){
+  /* ---- theme ---- */
+  var root=document.documentElement, btn=document.getElementById('theme');
+  var saved=null; try{saved=localStorage.getItem('o5theme');}catch(e){}
+  var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  root.setAttribute('data-theme', saved || (prefersDark?'dark':'light'));
+  btn.addEventListener('click',function(){
+    var next = root.getAttribute('data-theme')==='dark' ? 'light':'dark';
+    root.setAttribute('data-theme',next);
+    try{localStorage.setItem('o5theme',next);}catch(e){}
+  });
+
+  /* ---- reading progress ---- */
+  var bar=document.getElementById('progress');
+  function prog(){
+    var h=document.documentElement;
+    var max=h.scrollHeight-h.clientHeight;
+    bar.style.width = (max>0 ? (h.scrollTop/max*100) : 0)+'%';
+  }
+  document.addEventListener('scroll',prog,{passive:true}); prog();
+
+  /* ---- scroll-spy TOC ---- */
+  var links=[].slice.call(document.querySelectorAll('nav#toc a'));
+  var secs=links.map(function(a){return document.querySelector(a.getAttribute('href'));}).filter(Boolean);
+  if('IntersectionObserver' in window){
+    var vis={};
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){ vis[e.target.id]=e.isIntersecting?e.intersectionRatio:0; });
+      var best=null,bv=0;
+      secs.forEach(function(s){ if((vis[s.id]||0)>bv){bv=vis[s.id];best=s.id;} });
+      if(best){
+        links.forEach(function(a){ a.classList.toggle('active', a.getAttribute('href')==='#'+best); });
+      }
+    },{rootMargin:'-10% 0px -70% 0px',threshold:[0,.15,.4,.75,1]});
+    secs.forEach(function(s){io.observe(s);});
+  }
+
+  /* ---- copy buttons ---- */
+  document.querySelectorAll('.snip').forEach(function(sn){
+    var b=sn.querySelector('.copy'), pre=sn.querySelector('pre');
+    if(!b||!pre) return;
+    b.addEventListener('click',function(){
+      var t=pre.innerText;
+      var done=function(){ b.textContent='copied'; b.classList.add('ok');
+        setTimeout(function(){b.textContent='copy';b.classList.remove('ok');},1600); };
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        navigator.clipboard.writeText(t).then(done,function(){fallback(t,done);});
+      } else fallback(t,done);
+    });
+  });
+  function fallback(t,cb){
+    var ta=document.createElement('textarea');
+    ta.value=t; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{document.execCommand('copy');cb();}catch(e){}
+    document.body.removeChild(ta);
+  }
+})();
+</script>
+</body>
+</html>
